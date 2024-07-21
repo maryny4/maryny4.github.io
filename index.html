@@ -1,69 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-   <meta charset="UTF-8">
-   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <title>Test Telegram WebApps API</title>
-   <script src="https://telegram.org/js/telegram-web-app.js"></script> <!-- Подключаем скрипт от Telegram -->
-
-   <style>
-      body {
-         color: var(--tg-theme-text-color);
-         background: var(--tg-theme-bg-color);
-         display: flex;
-         flex-direction: column;
-         align-items: center;
-         font-size: 18px;
-         margin: 0;
-         height: 100vh;
-         justify-content: center;
-      }
-
-      .link {
-         display: inline-block;
-         background: var(--tg-theme-button-color);
-         color: var(--tg-theme-button-text-color);
-         padding: 15px 30px;
-         border-radius: 5px;
-         text-decoration: none;
-         font-size: 20px;
-         font-weight: bold;
-         transition: background 0.3s, color 0.3s;
-         margin: 10px;
-         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
-
-      .link:hover {
-         background: var(--tg-theme-button-hover-color, #1b6d85); /* Можно задать другой цвет при наведении */
-         color: var(--tg-theme-button-hover-text-color, #ffffff);
-      }
-   </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>maryny4</title>
 </head>
-
 <body>
-<<<<<<< HEAD
-   <a class="link" href="https://t.me/hamster_kombAt_bot/start" target="_blank">Link to Hamster Bot</a> <!-- Ссылка на бота -->
-   <a class="link" href="http://google.com/" target="_blank">Link to Google</a> <!-- Ссылка на Google -->
-=======
-    <iframe src="https://t.me/hamster_kombAt_bot/start" title="Google"></iframe>
->>>>>>> a023bc3646bc06941e3a46f5ff4413e117f008e1
+    <nav>
+        <ul>
+            <li><a href="mini_app.html">Mini App Telegram</a></li>
+            <li><a href="#">Project 2</a></li>
+            <li><a href="#">Project 3</a></li>
+        </ul>
+    </nav>
 </body>
-
-<script>
-   let tg = window.Telegram.WebApp; // Получаем объект WebApp от Telegram
-
-   tg.expand(); // Расширяем на всё окно
-
-   // Настраиваем основную кнопку Telegram
-   tg.MainButton.text = "Changed Text"; // Изменяем текст кнопки
-   tg.MainButton.setText("Changed Text1"); // Изменяем текст кнопки иначе
-   tg.MainButton.textColor = "#F55353"; // Изменяем цвет текста кнопки
-   tg.MainButton.color = "#143F6B"; // Изменяем цвет фона кнопки
-   tg.MainButton.setParams({"color": "#143F6B"}); // Изменяем параметры кнопки
-
-   Telegram.WebApp.onEvent('mainButtonClicked', function() {
-      tg.sendData("some string that we need to send"); // Отправляем данные при клике на кнопку
-   });
-</script>
 </html>
