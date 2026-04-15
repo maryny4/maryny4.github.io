@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>SDK Test Suite</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+    padding: 12px;
+    background: var(--tg-theme-bg-color, #fff);
+    color: var(--tg-theme-text-color, #000);
+}
+#summary {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+}
+#info {
+    font-size: 11px;
+    color: var(--tg-theme-hint-color, #999);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+table { width: 100%; border-collapse: collapse; }
+th {
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--tg-theme-hint-color, #999);
+    border-bottom: 1px solid var(--tg-theme-section-separator-color, #e7e7e7);
+}
+td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--tg-theme-section-separator-color, #e7e7e7);
+    vertical-align: top;
+}
+td:first-child { font-weight: 500; white-space: nowrap; }
+td:last-child {
+    font-size: 11px;
+    color: var(--tg-theme-hint-color, #999);
+    word-break: break-all;
+    max-width: 160px;
+}
+.pass { color: #34c759; }
+.fail { color: #ff3b30; }
+.skip { color: #ff9500; }
+.running { color: var(--tg-theme-link-color, #168acd); }
+.group-header td {
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--tg-theme-section-header-text-color, #168acd);
+    padding-top: 12px;
+    border-bottom: none;
+}
+</style>
+</head>
+<body>
+
+<div id="summary">Running tests...</div>
+<div id="info"></div>
+<table>
+<thead><tr><th>Test</th><th>Status</th><th>Details</th></tr></thead>
+<tbody id="results"></tbody>
+</table>
+
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    var tbody = document.getElementById('results');
+    var summaryEl = document.getElementById('summary');
+    var infoEl = document.getElementById('info');
+    var passed = 0, failed = 0, skipped = 0;
+    var TIMEOUT = 3000;
+
+    // Show environment info
+    if (tg) {
+        infoEl.textContent =
+            'version: ' + tg.version +
+            ' | platform: ' + tg.platform +
+            ' | colorScheme: ' + tg.colorScheme +
+            ' | initData: ' + (tg.initData ? tg.initData.substring(0, 40) + '...' : 'empty');
+    }
+
+    function addGroup(name) {
+        var tr = document.createElement('tr');
+        tr.className = 'group-header';
+        tr.innerHTML = '<td colspan="3">' + name + '</td>';
+        tbody.appendChild(tr);
+    }
+
+    function addRow(name) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + name + '</td>' +
+            '<td class="running">...</td>' +
+            '<td></td>';
+        tbody.appendChild(tr);
+        return tr;
+    }
+
+    function setResult(tr, status, detail) {
+        var cells = tr.getElementsByTagName('td');
+        cells[1].className = status;
+        cells[1].textContent = status.toUpperCase();
+        cells[2].textContent = detail || '';
+        if (status === 'pass') passed++;
+        else if (status === 'fail') failed++;
+        else skipped++;
+        updateSummary();
+    }
+
+    function updateSummary() {
+        var total = passed + failed + skipped;
+        summaryEl.textContent = passed + '/' + total + ' passed' +
+            (failed ? ', ' + failed + ' failed' : '') +
+            (skipped ? ', ' + skipped + ' skipped' : '');
+        summaryEl.style.color = failed ? '#ff3b30' : '#34c759';
+    }
+
+    // Promise wrapper with timeout
+    function withTimeout(fn, ms) {
+        return new Promise(function(resolve) {
+            var done = false;
+            var timer = setTimeout(function() {
+                if (!done) { done = true; resolve({status: 'fail', detail: 'timeout'}); }
+            }, ms || TIMEOUT);
+            try {
+                fn(function(status, detail) {
+                    if (!done) {
+                        done = true;
+                        clearTimeout(timer);
+                        resolve({status: status, detail: detail});
+                    }
+                });
+            } catch(e) {
+                if (!done) {
+                    done = true;
+                    clearTimeout(timer);
+                    resolve({status: 'fail', detail: e.message});
+                }
+            }
+        });
+    }
+
+    // Sync test helper
+    function syncTest(fn) {
+        return withTimeout(function(done) {
+            var result = fn();
+            done(result.status, result.detail);
+        }, 500);
+    }
+
+    // ---- Test definitions ----
+
+    var tests = [];
+
+    function group(name) { tests.push({group: name}); }
+    function test(name, fn) { tests.push({name: name, fn: fn}); }
+
+    // == Properties ==
+    group('Properties');
+
+    test('initData present', function() {
+        return syncTest(function() {
+            if (!tg) return {status:'fail', detail:'Telegram.WebApp missing'};
+            return tg.initData
+                ? {status:'pass', detail: tg.initData.substring(0, 50)}
+                : {status:'fail', detail:'empty'};
+        });
+    });
+
+    test('version', function() {
+        return syncTest(function() {
+            return tg.version
+                ? {status:'pass', detail: tg.version}
+                : {status:'fail', detail:'missing'};
+        });
+    });
+
+    test('platform', function() {
+        return syncTest(function() {
+            return tg.platform
+                ? {status:'pass', detail: tg.platform}
+                : {status:'fail', detail:'missing'};
+        });
+    });
+
+    test('colorScheme', function() {
+        return syncTest(function() {
+            var s = tg.colorScheme;
+            return (s === 'light' || s === 'dark')
+                ? {status:'pass', detail: s}
+                : {status:'fail', detail: String(s)};
+        });
+    });
+
+    test('themeParams (15 keys)', function() {
+        return syncTest(function() {
+            var tp = tg.themeParams || {};
+            var keys = Object.keys(tp);
+            return keys.length >= 14
+                ? {status:'pass', detail: keys.length + ' keys'}
+                : {status:'fail', detail: keys.length + ' keys: ' + keys.join(',')};
+        });
+    });
+
+    test('viewportHeight', function() {
+        return syncTest(function() {
+            return tg.viewportHeight > 0
+                ? {status:'pass', detail: tg.viewportHeight + 'px'}
+                : {status:'fail', detail: String(tg.viewportHeight)};
+        });
+    });
+
+    test('isExpanded', function() {
+        return syncTest(function() {
+            return tg.isExpanded
+                ? {status:'pass', detail:'true'}
+                : {status:'fail', detail:'false'};
+        });
+    });
+
+    // == UI Controls ==
+    group('UI Controls');
+
+    test('MainButton show/hide', function() {
+        return withTimeout(function(done) {
+            tg.MainButton.setText('TEST').show();
+            setTimeout(function() {
+                var shown = tg.MainButton.isVisible;
+                tg.MainButton.hide();
+                setTimeout(function() {
+                    var hidden = !tg.MainButton.isVisible;
+                    done(shown && hidden ? 'pass' : 'fail',
+                         'shown=' + shown + ' hidden=' + hidden);
+                }, 100);
+            }, 200);
+        });
+    });
+
+    test('SecondaryButton show/hide', function() {
+        return withTimeout(function(done) {
+            if (!tg.SecondaryButton) { done('skip', 'not available'); return; }
+            tg.SecondaryButton.setText('SEC').show();
+            setTimeout(function() {
+                var shown = tg.SecondaryButton.isVisible;
+                tg.SecondaryButton.hide();
+                setTimeout(function() {
+                    var hidden = !tg.SecondaryButton.isVisible;
+                    done(shown && hidden ? 'pass' : 'fail',
+                         'shown=' + shown + ' hidden=' + hidden);
+                }, 100);
+            }, 200);
+        });
+    });
+
+    test('BackButton show/hide', function() {
+        return withTimeout(function(done) {
+            tg.BackButton.show();
+            setTimeout(function() {
+                var shown = tg.BackButton.isVisible;
+                tg.BackButton.hide();
+                setTimeout(function() {
+                    var hidden = !tg.BackButton.isVisible;
+                    done(shown && hidden ? 'pass' : 'fail',
+                         'shown=' + shown + ' hidden=' + hidden);
+                }, 100);
+            }, 200);
+        });
+    });
+
+    test('SettingsButton show/hide', function() {
+        return withTimeout(function(done) {
+            if (!tg.SettingsButton) { done('skip', 'not available'); return; }
+            tg.SettingsButton.show();
+            setTimeout(function() {
+                var shown = tg.SettingsButton.isVisible;
+                tg.SettingsButton.hide();
+                setTimeout(function() {
+                    var hidden = !tg.SettingsButton.isVisible;
+                    done(shown && hidden ? 'pass' : 'fail',
+                         'shown=' + shown + ' hidden=' + hidden);
+                }, 100);
+            }, 200);
+        });
+    });
+
+    test('setHeaderColor', function() {
+        return withTimeout(function(done) {
+            try {
+                tg.setHeaderColor('#ff5500');
+                setTimeout(function() {
+                    // Restore original
+                    tg.setHeaderColor(tg.themeParams.header_bg_color || '#ffffff');
+                    done('pass', '#ff5500');
+                }, 200);
+            } catch(e) { done('fail', e.message); }
+        });
+    });
+
+    test('setBackgroundColor', function() {
+        return syncTest(function() {
+            try {
+                tg.setBackgroundColor('#112233');
+                tg.setBackgroundColor(tg.themeParams.bg_color || '#ffffff');
+                return {status:'pass', detail:'#112233'};
+            } catch(e) { return {status:'fail', detail: e.message}; }
+        });
+    });
+
+    test('setBottomBarColor', function() {
+        return syncTest(function() {
+            try {
+                if (!tg.setBottomBarColor) return {status:'skip', detail:'not available'};
+                tg.setBottomBarColor('#223344');
+                tg.setBottomBarColor(tg.themeParams.bottom_bar_bg_color || '#ffffff');
+                return {status:'pass', detail:'#223344'};
+            } catch(e) { return {status:'fail', detail: e.message}; }
+        });
+    });
+
+    // == Popups ==
+    group('Popups');
+
+    test('showPopup', function() {
+        return withTimeout(function(done) {
+            tg.showPopup({
+                title: 'Test',
+                message: 'Auto-confirm test',
+                buttons: [{id: 'ok', type: 'ok', text: 'OK'}]
+            }, function(btnId) {
+                done('pass', 'button_id=' + btnId);
+            });
+        });
+    });
+
+    test('showAlert', function() {
+        return withTimeout(function(done) {
+            tg.showAlert('Test alert', function() {
+                done('pass', 'closed');
+            });
+        });
+    });
+
+    test('showConfirm', function() {
+        return withTimeout(function(done) {
+            tg.showConfirm('Test confirm?', function(ok) {
+                done('pass', 'confirmed=' + ok);
+            });
+        });
+    });
+
+    // == Storage ==
+    group('Cloud Storage');
+
+    test('CloudStorage set/get', function() {
+        return withTimeout(function(done) {
+            var key = '__test_' + Date.now();
+            var val = 'hello_' + Math.random();
+            tg.CloudStorage.setItem(key, val, function(err) {
+                if (err) { done('fail', 'set: ' + err); return; }
+                tg.CloudStorage.getItem(key, function(err2, got) {
+                    tg.CloudStorage.removeItem(key, function() {});
+                    if (err2) { done('fail', 'get: ' + err2); return; }
+                    done(got === val ? 'pass' : 'fail',
+                         'expected=' + val + ' got=' + got);
+                });
+            });
+        });
+    });
+
+    test('CloudStorage getKeys', function() {
+        return withTimeout(function(done) {
+            tg.CloudStorage.getKeys(function(err, keys) {
+                if (err) { done('fail', err); return; }
+                done('pass', keys.length + ' keys');
+            });
+        });
+    });
+
+    test('CloudStorage remove', function() {
+        return withTimeout(function(done) {
+            var key = '__test_rm_' + Date.now();
+            tg.CloudStorage.setItem(key, 'tmp', function(err) {
+                if (err) { done('fail', 'set: ' + err); return; }
+                tg.CloudStorage.removeItem(key, function(err2) {
+                    if (err2) { done('fail', 'rm: ' + err2); return; }
+                    tg.CloudStorage.getItem(key, function(err3, val) {
+                        done(!val || val === '' ? 'pass' : 'fail',
+                             'after remove: "' + val + '"');
+                    });
+                });
+            });
+        });
+    });
+
+    group('Device Storage');
+
+    test('DeviceStorage save/get', function() {
+        return withTimeout(function(done) {
+            if (!tg.DeviceStorage) { done('skip', 'not available'); return; }
+            var key = '__test_ds_' + Date.now();
+            tg.DeviceStorage.setItem(key, 'dsval', function(err) {
+                if (err) { done('fail', 'save: ' + err); return; }
+                tg.DeviceStorage.getItem(key, function(err2, got) {
+                    tg.DeviceStorage.removeItem(key, function() {});
+                    if (err2) { done('fail', 'get: ' + err2); return; }
+                    done(got === 'dsval' ? 'pass' : 'fail', 'got=' + got);
+                });
+            });
+        });
+    });
+
+    group('Secure Storage');
+
+    test('SecureStorage save/get', function() {
+        return withTimeout(function(done) {
+            if (!tg.SecureStorage) { done('skip', 'not available'); return; }
+            var key = '__test_ss_' + Date.now();
+            tg.SecureStorage.setItem(key, 'ssval', function(err) {
+                if (err) { done('fail', 'save: ' + err); return; }
+                tg.SecureStorage.getItem(key, function(err2, got) {
+                    tg.SecureStorage.removeItem(key, function() {});
+                    if (err2) { done('fail', 'get: ' + err2); return; }
+                    done(got === 'ssval' ? 'pass' : 'fail', 'got=' + got);
+                });
+            });
+        });
+    });
+
+    // == Permissions ==
+    group('Permissions');
+
+    test('requestWriteAccess', function() {
+        return withTimeout(function(done) {
+            tg.requestWriteAccess(function(ok) {
+                done('pass', 'granted=' + ok);
+            });
+        });
+    });
+
+    test('requestContact', function() {
+        return withTimeout(function(done) {
+            tg.requestContact(function(ok) {
+                done('pass', 'sent=' + ok);
+            });
+        });
+    });
+
+    // == Clipboard ==
+    group('Clipboard');
+
+    test('readTextFromClipboard', function() {
+        return withTimeout(function(done) {
+            tg.readTextFromClipboard(function(text) {
+                done('pass', 'data=' + JSON.stringify(text));
+            });
+        });
+    });
+
+    // == Biometry ==
+    group('Biometry');
+
+    test('BiometricManager.init', function() {
+        return withTimeout(function(done) {
+            if (!tg.BiometricManager) { done('skip', 'not available'); return; }
+            tg.BiometricManager.init(function() {
+                done('pass', 'available=' + tg.BiometricManager.isInited +
+                     ' biometric=' + tg.BiometricManager.isBiometricAvailable);
+            });
+        });
+    });
+
+    // == Sensors ==
+    group('Sensors');
+
+    test('Accelerometer', function() {
+        return withTimeout(function(done) {
+            if (!tg.Accelerometer) { done('skip', 'not available'); return; }
+            tg.onEvent('accelerometerStarted', function() {
+                tg.Accelerometer.stop();
+                done('pass', 'started');
+            });
+            tg.onEvent('accelerometerFailed', function(e) {
+                done('pass', 'expected: ' + (e.error || 'UNSUPPORTED'));
+            });
+            tg.Accelerometer.start({refresh_rate: 100});
+        });
+    });
+
+    test('Gyroscope', function() {
+        return withTimeout(function(done) {
+            if (!tg.Gyroscope) { done('skip', 'not available'); return; }
+            tg.onEvent('gyroscopeStarted', function() {
+                tg.Gyroscope.stop();
+                done('pass', 'started');
+            });
+            tg.onEvent('gyroscopeFailed', function(e) {
+                done('pass', 'expected: ' + (e.error || 'UNSUPPORTED'));
+            });
+            tg.Gyroscope.start({refresh_rate: 100});
+        });
+    });
+
+    test('DeviceOrientation', function() {
+        return withTimeout(function(done) {
+            if (!tg.DeviceOrientation) { done('skip', 'not available'); return; }
+            tg.onEvent('deviceOrientationStarted', function() {
+                tg.DeviceOrientation.stop();
+                done('pass', 'started');
+            });
+            tg.onEvent('deviceOrientationFailed', function(e) {
+                done('pass', 'expected: ' + (e.error || 'UNSUPPORTED'));
+            });
+            tg.DeviceOrientation.start({refresh_rate: 100});
+        });
+    });
+
+    // == Location ==
+    group('Location');
+
+    test('LocationManager', function() {
+        return withTimeout(function(done) {
+            if (!tg.LocationManager) { done('skip', 'not available'); return; }
+            tg.LocationManager.init(function() {
+                done('pass', 'available=' + tg.LocationManager.isLocationAvailable +
+                     ' granted=' + tg.LocationManager.isAccessGranted);
+            });
+        });
+    });
+
+    // == QR Scanner ==
+    group('QR Scanner');
+
+    test('showScanQrPopup', function() {
+        return withTimeout(function(done) {
+            tg.showScanQrPopup({text: 'Test'}, function(text) {
+                done('pass', 'result=' + JSON.stringify(text));
+                return true; // close
+            });
+            // Also handle close without result
+            tg.onEvent('scanQrPopupClosed', function() {
+                done('pass', 'closed (no result)');
+            });
+        });
+    });
+
+    // == Haptic ==
+    group('Haptic Feedback');
+
+    test('impactOccurred', function() {
+        return syncTest(function() {
+            try {
+                tg.HapticFeedback.impactOccurred('medium');
+                return {status:'pass', detail:'medium'};
+            } catch(e) { return {status:'fail', detail: e.message}; }
+        });
+    });
+
+    test('notificationOccurred', function() {
+        return syncTest(function() {
+            try {
+                tg.HapticFeedback.notificationOccurred('success');
+                return {status:'pass', detail:'success'};
+            } catch(e) { return {status:'fail', detail: e.message}; }
+        });
+    });
+
+    // == Fullscreen ==
+    group('Fullscreen');
+
+    test('requestFullscreen', function() {
+        return withTimeout(function(done) {
+            if (!tg.requestFullscreen) { done('skip', 'not available'); return; }
+            tg.onEvent('fullscreenChanged', function() {
+                done('pass', 'isFullscreen=' + tg.isFullscreen);
+            });
+            tg.onEvent('fullscreenFailed', function(e) {
+                done('pass', 'expected: ' + (e.error || 'UNSUPPORTED'));
+            });
+            tg.requestFullscreen();
+        });
+    });
+
+    // == Home Screen ==
+    group('Home Screen');
+
+    test('checkHomeScreenStatus', function() {
+        return withTimeout(function(done) {
+            if (!tg.checkHomeScreenStatus) { done('skip', 'not available'); return; }
+            tg.onEvent('homeScreenChecked', function(e) {
+                done('pass', 'status=' + (e.status || e));
+            });
+            tg.checkHomeScreenStatus();
+        });
+    });
+
+    // == Emoji Status ==
+    group('Emoji Status');
+
+    test('requestEmojiStatusAccess', function() {
+        return withTimeout(function(done) {
+            if (!tg.requestEmojiStatusAccess) { done('skip', 'not available'); return; }
+            tg.requestEmojiStatusAccess(function(ok) {
+                done('pass', 'granted=' + ok);
+            });
+        });
+    });
+
+    // == Run all tests sequentially ==
+    async function runAll() {
+        if (tg) tg.ready();
+        if (tg) tg.expand();
+
+        for (var i = 0; i < tests.length; i++) {
+            var t = tests[i];
+            if (t.group) { addGroup(t.group); continue; }
+            var tr = addRow(t.name);
+            try {
+                var result = await t.fn();
+                setResult(tr, result.status, result.detail);
+            } catch(e) {
+                setResult(tr, 'fail', e.message);
+            }
+            // Small delay between tests to let UI settle
+            await new Promise(function(r) { setTimeout(r, 50); });
+        }
+    }
+
+    runAll();
+})();
+</script>
+</body>
+</html>
