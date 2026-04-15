@@ -25,620 +25,660 @@ body {
 #info {
     font-size: 11px;
     color: var(--tg-theme-hint-color, #999);
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     line-height: 1.5;
 }
 table { width: 100%; border-collapse: collapse; }
 th {
-    text-align: left;
-    padding: 6px 8px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    text-align: left; padding: 6px 8px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px;
     color: var(--tg-theme-hint-color, #999);
     border-bottom: 1px solid var(--tg-theme-section-separator-color, #e7e7e7);
 }
 td {
-    padding: 6px 8px;
+    padding: 5px 8px;
     border-bottom: 1px solid var(--tg-theme-section-separator-color, #e7e7e7);
     vertical-align: top;
 }
 td:first-child { font-weight: 500; white-space: nowrap; }
 td:last-child {
-    font-size: 11px;
-    color: var(--tg-theme-hint-color, #999);
-    word-break: break-all;
-    max-width: 160px;
+    font-size: 11px; color: var(--tg-theme-hint-color, #999);
+    word-break: break-all; max-width: 160px;
 }
 .pass { color: #34c759; }
 .fail { color: #ff3b30; }
 .skip { color: #ff9500; }
-.running { color: var(--tg-theme-link-color, #168acd); }
-.group-header td {
-    font-weight: 700;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.wait { color: var(--tg-theme-link-color, #168acd); }
+.g td {
+    font-weight: 700; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; padding-top: 10px; border-bottom: none;
     color: var(--tg-theme-section-header-text-color, #168acd);
-    padding-top: 12px;
-    border-bottom: none;
 }
 </style>
 </head>
 <body>
 
-<div id="summary">Running tests...</div>
+<div id="summary">Running...</div>
 <div id="info"></div>
 <table>
 <thead><tr><th>Test</th><th>Status</th><th>Details</th></tr></thead>
-<tbody id="results"></tbody>
+<tbody id="r"></tbody>
 </table>
 
 <script>
 (function() {
     var tg = window.Telegram && window.Telegram.WebApp;
-    var tbody = document.getElementById('results');
-    var summaryEl = document.getElementById('summary');
-    var infoEl = document.getElementById('info');
-    var passed = 0, failed = 0, skipped = 0;
-    var TIMEOUT = 3000;
+    var tbody = document.getElementById('r');
+    var sumEl = document.getElementById('summary');
+    var P = 0, F = 0, S = 0, T = 3000;
 
-    // Show environment info
     if (tg) {
-        infoEl.textContent =
-            'version: ' + tg.version +
-            ' | platform: ' + tg.platform +
-            ' | colorScheme: ' + tg.colorScheme +
-            ' | initData: ' + (tg.initData ? tg.initData.substring(0, 40) + '...' : 'empty');
+        document.getElementById('info').textContent =
+            'v' + tg.version + ' | ' + tg.platform + ' | ' + tg.colorScheme +
+            ' | initData: ' + (tg.initData ? tg.initData.substring(0, 40) + '...' : 'none');
     }
 
-    function addGroup(name) {
-        var tr = document.createElement('tr');
-        tr.className = 'group-header';
-        tr.innerHTML = '<td colspan="3">' + name + '</td>';
-        tbody.appendChild(tr);
+    function grp(n) { var tr = document.createElement('tr'); tr.className = 'g'; tr.innerHTML = '<td colspan="3">' + n + '</td>'; tbody.appendChild(tr); }
+    function row(n) { var tr = document.createElement('tr'); tr.innerHTML = '<td>' + n + '</td><td class="wait">...</td><td></td>'; tbody.appendChild(tr); return tr; }
+    function set(tr, s, d) {
+        var c = tr.getElementsByTagName('td');
+        c[1].className = s; c[1].textContent = s.toUpperCase(); c[2].textContent = d || '';
+        if (s === 'pass') P++; else if (s === 'fail') F++; else S++;
+        sumEl.textContent = P + '/' + (P+F+S) + ' passed' + (F ? ', ' + F + ' failed' : '') + (S ? ', ' + S + ' skipped' : '');
+        sumEl.style.color = F ? '#ff3b30' : '#34c759';
     }
 
-    function addRow(name) {
-        var tr = document.createElement('tr');
-        tr.innerHTML =
-            '<td>' + name + '</td>' +
-            '<td class="running">...</td>' +
-            '<td></td>';
-        tbody.appendChild(tr);
-        return tr;
-    }
-
-    function setResult(tr, status, detail) {
-        var cells = tr.getElementsByTagName('td');
-        cells[1].className = status;
-        cells[1].textContent = status.toUpperCase();
-        cells[2].textContent = detail || '';
-        if (status === 'pass') passed++;
-        else if (status === 'fail') failed++;
-        else skipped++;
-        updateSummary();
-    }
-
-    function updateSummary() {
-        var total = passed + failed + skipped;
-        summaryEl.textContent = passed + '/' + total + ' passed' +
-            (failed ? ', ' + failed + ' failed' : '') +
-            (skipped ? ', ' + skipped + ' skipped' : '');
-        summaryEl.style.color = failed ? '#ff3b30' : '#34c759';
-    }
-
-    // Promise wrapper with timeout
-    function withTimeout(fn, ms) {
-        return new Promise(function(resolve) {
-            var done = false;
-            var timer = setTimeout(function() {
-                if (!done) { done = true; resolve({status: 'fail', detail: 'timeout'}); }
-            }, ms || TIMEOUT);
+    function tmo(fn, ms) {
+        return new Promise(function(res) {
+            var d = false;
+            var t = setTimeout(function() { if (!d) { d = true; res({s:'fail',d:'timeout'}); }}, ms || T);
             try {
-                fn(function(status, detail) {
-                    if (!done) {
-                        done = true;
-                        clearTimeout(timer);
-                        resolve({status: status, detail: detail});
-                    }
-                });
-            } catch(e) {
-                if (!done) {
-                    done = true;
-                    clearTimeout(timer);
-                    resolve({status: 'fail', detail: e.message});
-                }
-            }
+                fn(function(s, detail) { if (!d) { d = true; clearTimeout(t); res({s:s,d:detail}); }});
+            } catch(e) { if (!d) { d = true; clearTimeout(t); res({s:'fail',d:e.message}); }}
         });
     }
-
-    // Sync test helper
-    function syncTest(fn) {
-        return withTimeout(function(done) {
-            var result = fn();
-            done(result.status, result.detail);
-        }, 500);
-    }
-
-    // ---- Test definitions ----
+    function sync(fn) { return tmo(function(done) { var r = fn(); done(r.s, r.d); }, 500); }
+    function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
     var tests = [];
+    function g(n) { tests.push({g:n}); }
+    function t(n, fn) { tests.push({n:n,fn:fn}); }
 
-    function group(name) { tests.push({group: name}); }
-    function test(name, fn) { tests.push({name: name, fn: fn}); }
+    // ═══════════════════════════════════════════
+    // PROPERTIES
+    // ═══════════════════════════════════════════
+    g('Properties');
 
-    // == Properties ==
-    group('Properties');
+    t('initData', function() { return sync(function() {
+        return tg.initData ? {s:'pass',d:tg.initData.substring(0,50)} : {s:'fail',d:'empty'};
+    }); });
+    t('initDataUnsafe', function() { return sync(function() {
+        var u = tg.initDataUnsafe || {};
+        return u.user ? {s:'pass',d:'user.id=' + u.user.id} : {s:'fail',d:'no user'};
+    }); });
+    t('version', function() { return sync(function() {
+        return tg.version ? {s:'pass',d:tg.version} : {s:'fail',d:'missing'};
+    }); });
+    t('platform', function() { return sync(function() {
+        return tg.platform ? {s:'pass',d:tg.platform} : {s:'fail',d:'missing'};
+    }); });
+    t('colorScheme', function() { return sync(function() {
+        var s = tg.colorScheme;
+        return (s==='light'||s==='dark') ? {s:'pass',d:s} : {s:'fail',d:String(s)};
+    }); });
+    t('themeParams', function() { return sync(function() {
+        var k = Object.keys(tg.themeParams||{});
+        return k.length >= 14 ? {s:'pass',d:k.length+' keys'} : {s:'fail',d:k.length+' keys'};
+    }); });
+    t('viewportHeight', function() { return sync(function() {
+        return tg.viewportHeight > 0 ? {s:'pass',d:tg.viewportHeight+'px'} : {s:'fail',d:'0'};
+    }); });
+    t('viewportStableHeight', function() { return sync(function() {
+        return tg.viewportStableHeight > 0 ? {s:'pass',d:tg.viewportStableHeight+'px'} : {s:'fail',d:'0'};
+    }); });
+    t('isExpanded', function() { return sync(function() {
+        return tg.isExpanded ? {s:'pass',d:'true'} : {s:'fail',d:'false'};
+    }); });
+    t('headerColor', function() { return sync(function() {
+        return tg.headerColor ? {s:'pass',d:tg.headerColor} : {s:'fail',d:'missing'};
+    }); });
+    t('backgroundColor', function() { return sync(function() {
+        return tg.backgroundColor ? {s:'pass',d:tg.backgroundColor} : {s:'fail',d:'missing'};
+    }); });
+    t('bottomBarColor', function() { return sync(function() {
+        return tg.bottomBarColor ? {s:'pass',d:tg.bottomBarColor} : {s:'skip',d:'N/A'};
+    }); });
 
-    test('initData present', function() {
-        return syncTest(function() {
-            if (!tg) return {status:'fail', detail:'Telegram.WebApp missing'};
-            return tg.initData
-                ? {status:'pass', detail: tg.initData.substring(0, 50)}
-                : {status:'fail', detail:'empty'};
+    // ═══════════════════════════════════════════
+    // UI CONTROLS
+    // ═══════════════════════════════════════════
+    g('UI Controls');
+
+    t('MainButton show/hide', function() { return tmo(function(done) {
+        tg.MainButton.setText('TEST').show();
+        setTimeout(function() {
+            var a = tg.MainButton.isVisible;
+            tg.MainButton.hide();
+            setTimeout(function() { done(a && !tg.MainButton.isVisible ? 'pass':'fail', 'visible='+a); }, 150);
+        }, 300);
+    }); });
+
+    t('MainButton click', function() { return tmo(function(done) {
+        tg.MainButton.setText('CLICK ME').show();
+        tg.MainButton.onClick(function handler() {
+            tg.MainButton.offClick(handler);
+            tg.MainButton.hide();
+            done('pass', 'clicked');
         });
-    });
+        // Simulate click via postEvent
+        setTimeout(function() {
+            if (window.TelegramGameProxy) TelegramGameProxy.receiveEvent('main_button_pressed');
+        }, 200);
+    }); });
 
-    test('version', function() {
-        return syncTest(function() {
-            return tg.version
-                ? {status:'pass', detail: tg.version}
-                : {status:'fail', detail:'missing'};
+    t('SecondaryButton show/hide', function() { return tmo(function(done) {
+        if (!tg.SecondaryButton) { done('skip','N/A'); return; }
+        tg.SecondaryButton.setText('SEC').show();
+        setTimeout(function() {
+            var a = tg.SecondaryButton.isVisible;
+            tg.SecondaryButton.hide();
+            setTimeout(function() { done(a && !tg.SecondaryButton.isVisible ? 'pass':'fail', 'visible='+a); }, 150);
+        }, 300);
+    }); });
+
+    t('BackButton show/hide', function() { return tmo(function(done) {
+        tg.BackButton.show();
+        setTimeout(function() {
+            var a = tg.BackButton.isVisible;
+            tg.BackButton.hide();
+            setTimeout(function() { done(a && !tg.BackButton.isVisible ? 'pass':'fail', 'visible='+a); }, 150);
+        }, 300);
+    }); });
+
+    t('BackButton click', function() { return tmo(function(done) {
+        tg.BackButton.show();
+        tg.onEvent('backButtonClicked', function handler() {
+            tg.offEvent('backButtonClicked', handler);
+            tg.BackButton.hide();
+            done('pass', 'clicked');
         });
-    });
+        setTimeout(function() {
+            if (window.TelegramGameProxy) TelegramGameProxy.receiveEvent('back_button_pressed');
+        }, 200);
+    }); });
 
-    test('platform', function() {
-        return syncTest(function() {
-            return tg.platform
-                ? {status:'pass', detail: tg.platform}
-                : {status:'fail', detail:'missing'};
-        });
-    });
+    t('SettingsButton show/hide', function() { return tmo(function(done) {
+        if (!tg.SettingsButton) { done('skip','N/A'); return; }
+        tg.SettingsButton.show();
+        setTimeout(function() {
+            var a = tg.SettingsButton.isVisible;
+            tg.SettingsButton.hide();
+            setTimeout(function() { done(a && !tg.SettingsButton.isVisible ? 'pass':'fail', 'visible='+a); }, 150);
+        }, 300);
+    }); });
 
-    test('colorScheme', function() {
-        return syncTest(function() {
-            var s = tg.colorScheme;
-            return (s === 'light' || s === 'dark')
-                ? {status:'pass', detail: s}
-                : {status:'fail', detail: String(s)};
-        });
-    });
+    t('setHeaderColor', function() { return tmo(function(done) {
+        tg.setHeaderColor('#ff5500');
+        setTimeout(function() {
+            tg.setHeaderColor(tg.themeParams.header_bg_color || '#ffffff');
+            done('pass', '#ff5500');
+        }, 200);
+    }); });
 
-    test('themeParams (15 keys)', function() {
-        return syncTest(function() {
-            var tp = tg.themeParams || {};
-            var keys = Object.keys(tp);
-            return keys.length >= 14
-                ? {status:'pass', detail: keys.length + ' keys'}
-                : {status:'fail', detail: keys.length + ' keys: ' + keys.join(',')};
-        });
-    });
+    t('setBackgroundColor', function() { return sync(function() {
+        try { tg.setBackgroundColor('#112233'); tg.setBackgroundColor(tg.themeParams.bg_color||'#fff'); return {s:'pass',d:'#112233'}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
 
-    test('viewportHeight', function() {
-        return syncTest(function() {
-            return tg.viewportHeight > 0
-                ? {status:'pass', detail: tg.viewportHeight + 'px'}
-                : {status:'fail', detail: String(tg.viewportHeight)};
-        });
-    });
+    t('setBottomBarColor', function() { return sync(function() {
+        if (!tg.setBottomBarColor) return {s:'skip',d:'N/A'};
+        try { tg.setBottomBarColor('#223344'); tg.setBottomBarColor(tg.themeParams.bottom_bar_bg_color||'#fff'); return {s:'pass',d:'#223344'}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
 
-    test('isExpanded', function() {
-        return syncTest(function() {
-            return tg.isExpanded
-                ? {status:'pass', detail:'true'}
-                : {status:'fail', detail:'false'};
-        });
-    });
+    // ═══════════════════════════════════════════
+    // POPUPS
+    // ═══════════════════════════════════════════
+    g('Popups');
 
-    // == UI Controls ==
-    group('UI Controls');
+    t('showPopup', function() { return tmo(function(done) {
+        tg.showPopup({title:'Test',message:'popup test',buttons:[{id:'ok',type:'ok'}]}, function(id) { done('pass','btn='+id); });
+    }); });
 
-    test('MainButton show/hide', function() {
-        return withTimeout(function(done) {
-            tg.MainButton.setText('TEST').show();
-            setTimeout(function() {
-                var shown = tg.MainButton.isVisible;
-                tg.MainButton.hide();
-                setTimeout(function() {
-                    var hidden = !tg.MainButton.isVisible;
-                    done(shown && hidden ? 'pass' : 'fail',
-                         'shown=' + shown + ' hidden=' + hidden);
-                }, 100);
-            }, 200);
-        });
-    });
+    t('showAlert', function() { return tmo(function(done) {
+        tg.showAlert('alert test', function() { done('pass','closed'); });
+    }); });
 
-    test('SecondaryButton show/hide', function() {
-        return withTimeout(function(done) {
-            if (!tg.SecondaryButton) { done('skip', 'not available'); return; }
-            tg.SecondaryButton.setText('SEC').show();
-            setTimeout(function() {
-                var shown = tg.SecondaryButton.isVisible;
-                tg.SecondaryButton.hide();
-                setTimeout(function() {
-                    var hidden = !tg.SecondaryButton.isVisible;
-                    done(shown && hidden ? 'pass' : 'fail',
-                         'shown=' + shown + ' hidden=' + hidden);
-                }, 100);
-            }, 200);
-        });
-    });
+    t('showConfirm', function() { return tmo(function(done) {
+        tg.showConfirm('confirm?', function(ok) { done('pass','ok='+ok); });
+    }); });
 
-    test('BackButton show/hide', function() {
-        return withTimeout(function(done) {
-            tg.BackButton.show();
-            setTimeout(function() {
-                var shown = tg.BackButton.isVisible;
-                tg.BackButton.hide();
-                setTimeout(function() {
-                    var hidden = !tg.BackButton.isVisible;
-                    done(shown && hidden ? 'pass' : 'fail',
-                         'shown=' + shown + ' hidden=' + hidden);
-                }, 100);
-            }, 200);
-        });
-    });
+    // ═══════════════════════════════════════════
+    // CLOUD STORAGE
+    // ═══════════════════════════════════════════
+    g('Cloud Storage');
 
-    test('SettingsButton show/hide', function() {
-        return withTimeout(function(done) {
-            if (!tg.SettingsButton) { done('skip', 'not available'); return; }
-            tg.SettingsButton.show();
-            setTimeout(function() {
-                var shown = tg.SettingsButton.isVisible;
-                tg.SettingsButton.hide();
-                setTimeout(function() {
-                    var hidden = !tg.SettingsButton.isVisible;
-                    done(shown && hidden ? 'pass' : 'fail',
-                         'shown=' + shown + ' hidden=' + hidden);
-                }, 100);
-            }, 200);
-        });
-    });
-
-    test('setHeaderColor', function() {
-        return withTimeout(function(done) {
-            try {
-                tg.setHeaderColor('#ff5500');
-                setTimeout(function() {
-                    // Restore original
-                    tg.setHeaderColor(tg.themeParams.header_bg_color || '#ffffff');
-                    done('pass', '#ff5500');
-                }, 200);
-            } catch(e) { done('fail', e.message); }
-        });
-    });
-
-    test('setBackgroundColor', function() {
-        return syncTest(function() {
-            try {
-                tg.setBackgroundColor('#112233');
-                tg.setBackgroundColor(tg.themeParams.bg_color || '#ffffff');
-                return {status:'pass', detail:'#112233'};
-            } catch(e) { return {status:'fail', detail: e.message}; }
-        });
-    });
-
-    test('setBottomBarColor', function() {
-        return syncTest(function() {
-            try {
-                if (!tg.setBottomBarColor) return {status:'skip', detail:'not available'};
-                tg.setBottomBarColor('#223344');
-                tg.setBottomBarColor(tg.themeParams.bottom_bar_bg_color || '#ffffff');
-                return {status:'pass', detail:'#223344'};
-            } catch(e) { return {status:'fail', detail: e.message}; }
-        });
-    });
-
-    // == Popups ==
-    group('Popups');
-
-    test('showPopup', function() {
-        return withTimeout(function(done) {
-            tg.showPopup({
-                title: 'Test',
-                message: 'Auto-confirm test',
-                buttons: [{id: 'ok', type: 'ok', text: 'OK'}]
-            }, function(btnId) {
-                done('pass', 'button_id=' + btnId);
+    t('set/get/remove', function() { return tmo(function(done) {
+        var k = '__t_' + Date.now(), v = 'v_' + Math.random();
+        tg.CloudStorage.setItem(k, v, function(e1) {
+            if (e1) { done('fail','set:'+e1); return; }
+            tg.CloudStorage.getItem(k, function(e2, got) {
+                tg.CloudStorage.removeItem(k, function() {});
+                if (e2) { done('fail','get:'+e2); return; }
+                done(got === v ? 'pass':'fail', 'expected='+v+' got='+got);
             });
         });
-    });
+    }); });
 
-    test('showAlert', function() {
-        return withTimeout(function(done) {
-            tg.showAlert('Test alert', function() {
-                done('pass', 'closed');
-            });
-        });
-    });
+    t('getKeys', function() { return tmo(function(done) {
+        tg.CloudStorage.getKeys(function(e, keys) { done(e?'fail':'pass', e||keys.length+' keys'); });
+    }); });
 
-    test('showConfirm', function() {
-        return withTimeout(function(done) {
-            tg.showConfirm('Test confirm?', function(ok) {
-                done('pass', 'confirmed=' + ok);
-            });
-        });
-    });
-
-    // == Storage ==
-    group('Cloud Storage');
-
-    test('CloudStorage set/get', function() {
-        return withTimeout(function(done) {
-            var key = '__test_' + Date.now();
-            var val = 'hello_' + Math.random();
-            tg.CloudStorage.setItem(key, val, function(err) {
-                if (err) { done('fail', 'set: ' + err); return; }
-                tg.CloudStorage.getItem(key, function(err2, got) {
-                    tg.CloudStorage.removeItem(key, function() {});
-                    if (err2) { done('fail', 'get: ' + err2); return; }
-                    done(got === val ? 'pass' : 'fail',
-                         'expected=' + val + ' got=' + got);
+    t('getItems (batch)', function() { return tmo(function(done) {
+        var k1 = '__tb1_'+Date.now(), k2 = '__tb2_'+Date.now();
+        tg.CloudStorage.setItem(k1, 'a', function() {
+            tg.CloudStorage.setItem(k2, 'b', function() {
+                tg.CloudStorage.getItems([k1,k2], function(e, vals) {
+                    tg.CloudStorage.removeItems([k1,k2], function(){});
+                    if (e) { done('fail',e); return; }
+                    done(vals[k1]==='a' && vals[k2]==='b' ? 'pass':'fail', JSON.stringify(vals));
                 });
             });
         });
-    });
+    }); });
 
-    test('CloudStorage getKeys', function() {
-        return withTimeout(function(done) {
-            tg.CloudStorage.getKeys(function(err, keys) {
-                if (err) { done('fail', err); return; }
-                done('pass', keys.length + ' keys');
+    // ═══════════════════════════════════════════
+    // DEVICE STORAGE
+    // ═══════════════════════════════════════════
+    g('Device Storage');
+
+    t('save/get', function() { return tmo(function(done) {
+        if (!tg.DeviceStorage) { done('skip','N/A'); return; }
+        var k = '__td_'+Date.now();
+        tg.DeviceStorage.setItem(k, 'ds', function(e) {
+            if (e) { done('fail','save:'+e); return; }
+            tg.DeviceStorage.getItem(k, function(e2, got) {
+                tg.DeviceStorage.removeItem(k, function(){});
+                done(!e2 && got==='ds' ? 'pass':'fail', 'got='+got);
             });
         });
-    });
+    }); });
 
-    test('CloudStorage remove', function() {
-        return withTimeout(function(done) {
-            var key = '__test_rm_' + Date.now();
-            tg.CloudStorage.setItem(key, 'tmp', function(err) {
-                if (err) { done('fail', 'set: ' + err); return; }
-                tg.CloudStorage.removeItem(key, function(err2) {
-                    if (err2) { done('fail', 'rm: ' + err2); return; }
-                    tg.CloudStorage.getItem(key, function(err3, val) {
-                        done(!val || val === '' ? 'pass' : 'fail',
-                             'after remove: "' + val + '"');
-                    });
-                });
+    // ═══════════════════════════════════════════
+    // SECURE STORAGE
+    // ═══════════════════════════════════════════
+    g('Secure Storage');
+
+    t('save/get', function() { return tmo(function(done) {
+        if (!tg.SecureStorage) { done('skip','N/A'); return; }
+        var k = '__ts_'+Date.now();
+        tg.SecureStorage.setItem(k, 'ss', function(e) {
+            if (e) { done('fail','save:'+e); return; }
+            tg.SecureStorage.getItem(k, function(e2, got) {
+                tg.SecureStorage.removeItem(k, function(){});
+                done(!e2 && got==='ss' ? 'pass':'fail', 'got='+got);
             });
         });
-    });
+    }); });
 
-    group('Device Storage');
+    // ═══════════════════════════════════════════
+    // PERMISSIONS
+    // ═══════════════════════════════════════════
+    g('Permissions');
 
-    test('DeviceStorage save/get', function() {
-        return withTimeout(function(done) {
-            if (!tg.DeviceStorage) { done('skip', 'not available'); return; }
-            var key = '__test_ds_' + Date.now();
-            tg.DeviceStorage.setItem(key, 'dsval', function(err) {
-                if (err) { done('fail', 'save: ' + err); return; }
-                tg.DeviceStorage.getItem(key, function(err2, got) {
-                    tg.DeviceStorage.removeItem(key, function() {});
-                    if (err2) { done('fail', 'get: ' + err2); return; }
-                    done(got === 'dsval' ? 'pass' : 'fail', 'got=' + got);
-                });
-            });
+    t('requestWriteAccess', function() { return tmo(function(done) {
+        tg.requestWriteAccess(function(ok) { done('pass','granted='+ok); });
+    }); });
+
+    t('requestContact', function() { return tmo(function(done) {
+        tg.requestContact(function(ok) { done('pass','sent='+ok); });
+    }); });
+
+    // ═══════════════════════════════════════════
+    // CLIPBOARD
+    // ═══════════════════════════════════════════
+    g('Clipboard');
+
+    t('readTextFromClipboard', function() { return tmo(function(done) {
+        tg.readTextFromClipboard(function(text) { done('pass','data='+JSON.stringify(text)); });
+    }); });
+
+    // ═══════════════════════════════════════════
+    // BIOMETRY
+    // ═══════════════════════════════════════════
+    g('Biometry');
+
+    t('init + info', function() { return tmo(function(done) {
+        if (!tg.BiometricManager) { done('skip','N/A'); return; }
+        tg.BiometricManager.init(function() {
+            done('pass', 'inited='+tg.BiometricManager.isInited+' avail='+tg.BiometricManager.isBiometricAvailable+' type='+tg.BiometricManager.biometricType);
         });
-    });
+    }); });
 
-    group('Secure Storage');
-
-    test('SecureStorage save/get', function() {
-        return withTimeout(function(done) {
-            if (!tg.SecureStorage) { done('skip', 'not available'); return; }
-            var key = '__test_ss_' + Date.now();
-            tg.SecureStorage.setItem(key, 'ssval', function(err) {
-                if (err) { done('fail', 'save: ' + err); return; }
-                tg.SecureStorage.getItem(key, function(err2, got) {
-                    tg.SecureStorage.removeItem(key, function() {});
-                    if (err2) { done('fail', 'get: ' + err2); return; }
-                    done(got === 'ssval' ? 'pass' : 'fail', 'got=' + got);
-                });
-            });
+    t('authenticate', function() { return tmo(function(done) {
+        if (!tg.BiometricManager) { done('skip','N/A'); return; }
+        tg.BiometricManager.authenticate({reason:'test'}, function(ok, token) {
+            done(ok ? 'pass':'fail', 'ok='+ok+' token='+(token||'null'));
         });
-    });
+    }); });
 
-    // == Permissions ==
-    group('Permissions');
+    // ═══════════════════════════════════════════
+    // SENSORS
+    // ═══════════════════════════════════════════
+    g('Sensors');
 
-    test('requestWriteAccess', function() {
-        return withTimeout(function(done) {
-            tg.requestWriteAccess(function(ok) {
-                done('pass', 'granted=' + ok);
-            });
+    t('Accelerometer start/data/stop', function() { return tmo(function(done) {
+        if (!tg.Accelerometer) { done('skip','N/A'); return; }
+        var gotData = false;
+        tg.onEvent('accelerometerChanged', function handler() {
+            if (gotData) return;
+            gotData = true;
+            tg.offEvent('accelerometerChanged', handler);
+            var x = tg.Accelerometer.x, y = tg.Accelerometer.y, z = tg.Accelerometer.z;
+            tg.Accelerometer.stop();
+            done('pass', 'x='+x.toFixed(2)+' y='+y.toFixed(2)+' z='+z.toFixed(2));
         });
-    });
-
-    test('requestContact', function() {
-        return withTimeout(function(done) {
-            tg.requestContact(function(ok) {
-                done('pass', 'sent=' + ok);
-            });
+        tg.onEvent('accelerometerFailed', function(e) {
+            done(e.error === 'UNSUPPORTED' ? 'skip':'fail', e.error);
         });
-    });
+        tg.Accelerometer.start({refresh_rate: 100});
+    }); });
 
-    // == Clipboard ==
-    group('Clipboard');
-
-    test('readTextFromClipboard', function() {
-        return withTimeout(function(done) {
-            tg.readTextFromClipboard(function(text) {
-                done('pass', 'data=' + JSON.stringify(text));
-            });
+    t('Gyroscope start/data/stop', function() { return tmo(function(done) {
+        if (!tg.Gyroscope) { done('skip','N/A'); return; }
+        var gotData = false;
+        tg.onEvent('gyroscopeChanged', function handler() {
+            if (gotData) return;
+            gotData = true;
+            tg.offEvent('gyroscopeChanged', handler);
+            var x = tg.Gyroscope.x, y = tg.Gyroscope.y, z = tg.Gyroscope.z;
+            tg.Gyroscope.stop();
+            done('pass', 'x='+x.toFixed(2)+' y='+y.toFixed(2)+' z='+z.toFixed(2));
         });
-    });
-
-    // == Biometry ==
-    group('Biometry');
-
-    test('BiometricManager.init', function() {
-        return withTimeout(function(done) {
-            if (!tg.BiometricManager) { done('skip', 'not available'); return; }
-            tg.BiometricManager.init(function() {
-                done('pass', 'available=' + tg.BiometricManager.isInited +
-                     ' biometric=' + tg.BiometricManager.isBiometricAvailable);
-            });
+        tg.onEvent('gyroscopeFailed', function(e) {
+            done(e.error === 'UNSUPPORTED' ? 'skip':'fail', e.error);
         });
-    });
+        tg.Gyroscope.start({refresh_rate: 100});
+    }); });
 
-    // == Sensors ==
-    group('Sensors');
-
-    test('Accelerometer', function() {
-        return withTimeout(function(done) {
-            if (!tg.Accelerometer) { done('skip', 'not available'); return; }
-            tg.onEvent('accelerometerStarted', function() {
-                tg.Accelerometer.stop();
-                done('pass', 'started');
-            });
-            tg.onEvent('accelerometerFailed', function(e) {
-                done('pass', 'expected: ' + (e.error || 'UNSUPPORTED'));
-            });
-            tg.Accelerometer.start({refresh_rate: 100});
+    t('DeviceOrientation start/data/stop', function() { return tmo(function(done) {
+        if (!tg.DeviceOrientation) { done('skip','N/A'); return; }
+        var gotData = false;
+        tg.onEvent('deviceOrientationChanged', function handler() {
+            if (gotData) return;
+            gotData = true;
+            tg.offEvent('deviceOrientationChanged', handler);
+            var a = tg.DeviceOrientation.alpha, b = tg.DeviceOrientation.beta, g2 = tg.DeviceOrientation.gamma;
+            tg.DeviceOrientation.stop();
+            done('pass', 'a='+a.toFixed(1)+' b='+b.toFixed(1)+' g='+g2.toFixed(1));
         });
-    });
-
-    test('Gyroscope', function() {
-        return withTimeout(function(done) {
-            if (!tg.Gyroscope) { done('skip', 'not available'); return; }
-            tg.onEvent('gyroscopeStarted', function() {
-                tg.Gyroscope.stop();
-                done('pass', 'started');
-            });
-            tg.onEvent('gyroscopeFailed', function(e) {
-                done('pass', 'expected: ' + (e.error || 'UNSUPPORTED'));
-            });
-            tg.Gyroscope.start({refresh_rate: 100});
+        tg.onEvent('deviceOrientationFailed', function(e) {
+            done(e.error === 'UNSUPPORTED' ? 'skip':'fail', e.error);
         });
-    });
+        tg.DeviceOrientation.start({refresh_rate: 100});
+    }); });
 
-    test('DeviceOrientation', function() {
-        return withTimeout(function(done) {
-            if (!tg.DeviceOrientation) { done('skip', 'not available'); return; }
-            tg.onEvent('deviceOrientationStarted', function() {
-                tg.DeviceOrientation.stop();
-                done('pass', 'started');
-            });
-            tg.onEvent('deviceOrientationFailed', function(e) {
-                done('pass', 'expected: ' + (e.error || 'UNSUPPORTED'));
-            });
-            tg.DeviceOrientation.start({refresh_rate: 100});
+    // ═══════════════════════════════════════════
+    // LOCATION
+    // ═══════════════════════════════════════════
+    g('Location');
+
+    t('check availability', function() { return tmo(function(done) {
+        if (!tg.LocationManager) { done('skip','N/A'); return; }
+        tg.LocationManager.init(function() {
+            done('pass', 'avail='+tg.LocationManager.isLocationAvailable+' granted='+tg.LocationManager.isAccessGranted);
         });
-    });
+    }); });
 
-    // == Location ==
-    group('Location');
-
-    test('LocationManager', function() {
-        return withTimeout(function(done) {
-            if (!tg.LocationManager) { done('skip', 'not available'); return; }
-            tg.LocationManager.init(function() {
-                done('pass', 'available=' + tg.LocationManager.isLocationAvailable +
-                     ' granted=' + tg.LocationManager.isAccessGranted);
-            });
-        });
-    });
-
-    // == QR Scanner ==
-    group('QR Scanner');
-
-    test('showScanQrPopup', function() {
-        return withTimeout(function(done) {
-            tg.showScanQrPopup({text: 'Test'}, function(text) {
-                done('pass', 'result=' + JSON.stringify(text));
-                return true; // close
-            });
-            // Also handle close without result
-            tg.onEvent('scanQrPopupClosed', function() {
-                done('pass', 'closed (no result)');
-            });
-        });
-    });
-
-    // == Haptic ==
-    group('Haptic Feedback');
-
-    test('impactOccurred', function() {
-        return syncTest(function() {
-            try {
-                tg.HapticFeedback.impactOccurred('medium');
-                return {status:'pass', detail:'medium'};
-            } catch(e) { return {status:'fail', detail: e.message}; }
-        });
-    });
-
-    test('notificationOccurred', function() {
-        return syncTest(function() {
-            try {
-                tg.HapticFeedback.notificationOccurred('success');
-                return {status:'pass', detail:'success'};
-            } catch(e) { return {status:'fail', detail: e.message}; }
-        });
-    });
-
-    // == Fullscreen ==
-    group('Fullscreen');
-
-    test('requestFullscreen', function() {
-        return withTimeout(function(done) {
-            if (!tg.requestFullscreen) { done('skip', 'not available'); return; }
-            tg.onEvent('fullscreenChanged', function() {
-                done('pass', 'isFullscreen=' + tg.isFullscreen);
-            });
-            tg.onEvent('fullscreenFailed', function(e) {
-                done('pass', 'expected: ' + (e.error || 'UNSUPPORTED'));
-            });
-            tg.requestFullscreen();
-        });
-    });
-
-    // == Home Screen ==
-    group('Home Screen');
-
-    test('checkHomeScreenStatus', function() {
-        return withTimeout(function(done) {
-            if (!tg.checkHomeScreenStatus) { done('skip', 'not available'); return; }
-            tg.onEvent('homeScreenChecked', function(e) {
-                done('pass', 'status=' + (e.status || e));
-            });
-            tg.checkHomeScreenStatus();
-        });
-    });
-
-    // == Emoji Status ==
-    group('Emoji Status');
-
-    test('requestEmojiStatusAccess', function() {
-        return withTimeout(function(done) {
-            if (!tg.requestEmojiStatusAccess) { done('skip', 'not available'); return; }
-            tg.requestEmojiStatusAccess(function(ok) {
-                done('pass', 'granted=' + ok);
-            });
-        });
-    });
-
-    // == Run all tests sequentially ==
-    async function runAll() {
-        if (tg) tg.ready();
-        if (tg) tg.expand();
-
-        for (var i = 0; i < tests.length; i++) {
-            var t = tests[i];
-            if (t.group) { addGroup(t.group); continue; }
-            var tr = addRow(t.name);
-            try {
-                var result = await t.fn();
-                setResult(tr, result.status, result.detail);
-            } catch(e) {
-                setResult(tr, 'fail', e.message);
+    t('getLocation', function() { return tmo(function(done) {
+        if (!tg.LocationManager) { done('skip','N/A'); return; }
+        tg.LocationManager.getLocation(function(loc) {
+            if (loc && loc.latitude !== undefined) {
+                done('pass', loc.latitude.toFixed(4)+','+loc.longitude.toFixed(4));
+            } else {
+                done('fail', 'no data');
             }
-            // Small delay between tests to let UI settle
-            await new Promise(function(r) { setTimeout(r, 50); });
+        });
+    }); });
+
+    // ═══════════════════════════════════════════
+    // QR SCANNER
+    // ═══════════════════════════════════════════
+    g('QR Scanner');
+
+    t('scan QR code', function() { return tmo(function(done) {
+        var gotText = false;
+        tg.showScanQrPopup({text:'Scan test'}, function(text) {
+            if (!gotText) {
+                gotText = true;
+                done(text ? 'pass':'fail', 'data='+JSON.stringify(text));
+            }
+            return true;
+        });
+        tg.onEvent('scanQrPopupClosed', function() {
+            if (!gotText) { gotText = true; done('pass', 'closed (no handler)'); }
+        });
+    }); });
+
+    // ═══════════════════════════════════════════
+    // HAPTIC FEEDBACK
+    // ═══════════════════════════════════════════
+    g('Haptic Feedback');
+
+    t('impact', function() { return sync(function() {
+        try { tg.HapticFeedback.impactOccurred('medium'); return {s:'pass',d:'medium'}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+    t('notification', function() { return sync(function() {
+        try { tg.HapticFeedback.notificationOccurred('success'); return {s:'pass',d:'success'}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+    t('selection', function() { return sync(function() {
+        try { tg.HapticFeedback.selectionChanged(); return {s:'pass',d:'ok'}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+
+    // ═══════════════════════════════════════════
+    // FULLSCREEN
+    // ═══════════════════════════════════════════
+    g('Fullscreen');
+
+    t('requestFullscreen', function() { return tmo(function(done) {
+        if (!tg.requestFullscreen) { done('skip','N/A'); return; }
+        tg.onEvent('fullscreenChanged', function h() {
+            tg.offEvent('fullscreenChanged', h);
+            done('pass', 'fullscreen='+tg.isFullscreen);
+            // Exit right away
+            if (tg.exitFullscreen) tg.exitFullscreen();
+        });
+        tg.onEvent('fullscreenFailed', function h2(e) {
+            tg.offEvent('fullscreenFailed', h2);
+            done(e.error==='UNSUPPORTED' ? 'skip':'fail', e.error);
+        });
+        tg.requestFullscreen();
+    }); });
+
+    // ═══════════════════════════════════════════
+    // HOME SCREEN
+    // ═══════════════════════════════════════════
+    g('Home Screen');
+
+    t('checkHomeScreenStatus', function() { return tmo(function(done) {
+        if (!tg.checkHomeScreenStatus) { done('skip','N/A'); return; }
+        tg.onEvent('homeScreenChecked', function h(e) { tg.offEvent('homeScreenChecked',h); done('pass','status='+(e.status||e)); });
+        tg.checkHomeScreenStatus();
+    }); });
+
+    // ═══════════════════════════════════════════
+    // EMOJI STATUS
+    // ═══════════════════════════════════════════
+    g('Emoji Status');
+
+    t('requestEmojiStatusAccess', function() { return tmo(function(done) {
+        if (!tg.requestEmojiStatusAccess) { done('skip','N/A'); return; }
+        tg.requestEmojiStatusAccess(function(ok) { done('pass','granted='+ok); });
+    }); });
+
+    // ═══════════════════════════════════════════
+    // LINKS
+    // ═══════════════════════════════════════════
+    g('Links');
+
+    t('openLink (no crash)', function() { return sync(function() {
+        try { tg.openLink('https://example.com', {try_instant_view: false}); return {s:'pass',d:'opened'}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+
+    t('openTelegramLink (no crash)', function() { return sync(function() {
+        try { tg.openTelegramLink('https://t.me/test'); return {s:'pass',d:'opened'}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+
+    // ═══════════════════════════════════════════
+    // INVOICE
+    // ═══════════════════════════════════════════
+    g('Invoice');
+
+    t('openInvoice', function() { return tmo(function(done) {
+        tg.openInvoice('test_slug', function(status) { done('pass','status='+status); });
+    }); });
+
+    // ═══════════════════════════════════════════
+    // CLOSING / SWIPE BEHAVIOR
+    // ═══════════════════════════════════════════
+    g('Behavior');
+
+    t('closingConfirmation', function() { return sync(function() {
+        try { tg.enableClosingConfirmation(); var a = tg.isClosingConfirmationEnabled; tg.disableClosingConfirmation(); return {s:'pass',d:'enabled='+a}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+
+    t('disableVerticalSwipes', function() { return sync(function() {
+        try {
+            if (!tg.disableVerticalSwipes) return {s:'skip',d:'N/A'};
+            tg.disableVerticalSwipes(); var a = tg.isVerticalSwipesEnabled;
+            tg.enableVerticalSwipes();
+            return {s:'pass',d:'disabled='+(!a)};
+        } catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+
+    // ═══════════════════════════════════════════
+    // VIEWPORT EVENTS
+    // ═══════════════════════════════════════════
+    g('Viewport Events');
+
+    t('viewport resize event', function() { return tmo(function(done) {
+        tg.onEvent('viewportChanged', function h(e) {
+            tg.offEvent('viewportChanged', h);
+            done('pass', 'h='+e.viewportHeight+' stable='+e.isStateStable);
+        });
+        // Trigger by expanding
+        tg.expand();
+    }); });
+
+    t('theme_changed event', function() { return tmo(function(done) {
+        tg.onEvent('themeChanged', function h() {
+            tg.offEvent('themeChanged', h);
+            done('pass', 'scheme='+tg.colorScheme);
+        });
+        // Trigger theme request
+        if (window.TelegramWebviewProxy) TelegramWebviewProxy.postEvent('web_app_request_theme');
+    }); });
+
+    // ═══════════════════════════════════════════
+    // ANTI-DETECT
+    // ═══════════════════════════════════════════
+    g('Anti-detect');
+
+    t('pywebview hidden from keys', function() { return sync(function() {
+        var keys = Object.keys(window);
+        var found = keys.indexOf('pywebview') !== -1;
+        return found ? {s:'fail',d:'visible in Object.keys'} : {s:'pass',d:'hidden'};
+    }); });
+
+    t('pywebview not in for..in', function() { return sync(function() {
+        var found = false;
+        for (var k in window) { if (k === 'pywebview') { found = true; break; } }
+        return found ? {s:'fail',d:'visible in for..in'} : {s:'pass',d:'hidden'};
+    }); });
+
+    t('bridge internals hidden', function() { return sync(function() {
+        // Check that __tg_ prefixed globals are not visible
+        var keys = Object.keys(window);
+        var leaked = [];
+        for (var i = 0; i < keys.length; i++) {
+            if (keys[i].indexOf('__tg_') === 0) leaked.push(keys[i]);
+        }
+        return leaked.length === 0 ? {s:'pass',d:'clean'} : {s:'fail',d:'leaked: '+leaked.join(',')};
+    }); });
+
+    // ═══════════════════════════════════════════
+    // JS INJECTION (from Python app.js())
+    // ═══════════════════════════════════════════
+    g('JS Injection');
+
+    t('DOM read', function() { return sync(function() {
+        var title = document.title;
+        return title ? {s:'pass',d:title} : {s:'fail',d:'no title'};
+    }); });
+
+    t('DOM write', function() { return sync(function() {
+        var el = document.createElement('div');
+        el.id = '__test_inject';
+        el.textContent = 'injected';
+        document.body.appendChild(el);
+        var found = document.getElementById('__test_inject');
+        if (found) found.remove();
+        return found ? {s:'pass',d:'created+removed'} : {s:'fail',d:'not found'};
+    }); });
+
+    t('localStorage', function() { return sync(function() {
+        var k = '__test_ls_'+Date.now();
+        localStorage.setItem(k, 'x');
+        var v = localStorage.getItem(k);
+        localStorage.removeItem(k);
+        return v === 'x' ? {s:'pass',d:'read/write ok'} : {s:'fail',d:'got='+v};
+    }); });
+
+    t('fetch API', function() { return tmo(function(done) {
+        fetch(window.location.href, {method:'HEAD'}).then(function(r) {
+            done('pass', 'status='+r.status);
+        }).catch(function(e) { done('fail', e.message); });
+    }); });
+
+    t('XMLHttpRequest', function() { return tmo(function(done) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('HEAD', window.location.href);
+        xhr.onload = function() { done('pass', 'status='+xhr.status); };
+        xhr.onerror = function() { done('fail', 'network error'); };
+        xhr.send();
+    }); });
+
+    t('eval() works', function() { return sync(function() {
+        try { var r = eval('1+2+3'); return {s:'pass',d:'result='+r}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+
+    t('new Function() works', function() { return sync(function() {
+        try { var fn = new Function('return 42'); return {s:'pass',d:'result='+fn()}; }
+        catch(e) { return {s:'fail',d:e.message}; }
+    }); });
+
+    // ═══════════════════════════════════════════
+    // RUN
+    // ═══════════════════════════════════════════
+    async function run() {
+        if (tg) { tg.ready(); tg.expand(); }
+        for (var i = 0; i < tests.length; i++) {
+            var x = tests[i];
+            if (x.g) { grp(x.g); continue; }
+            var tr = row(x.n);
+            try { var r = await x.fn(); set(tr, r.s, r.d); }
+            catch(e) { set(tr, 'fail', e.message); }
+            await delay(50);
         }
     }
-
-    runAll();
+    run();
 })();
 </script>
 </body>
