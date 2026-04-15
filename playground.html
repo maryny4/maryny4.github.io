@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>WebView Playground</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px; padding: 12px 12px 80px;
+    background: var(--tg-theme-bg-color, #fff);
+    color: var(--tg-theme-text-color, #000);
+}
+.section {
+    background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+    border-radius: 12px; padding: 14px; margin-bottom: 10px;
+}
+.section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 10px;
+    color: var(--tg-theme-section-header-text-color, #168acd);
+}
+.row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.label { font-size: 11px; color: var(--tg-theme-hint-color, #999); min-width: 24px; }
+.value { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bar-wrap { flex:1; height: 6px; background: var(--tg-theme-bg-color, #fff); border-radius: 3px; overflow: hidden; }
+.bar { height: 100%; border-radius: 3px; transition: width 0.1s; background: var(--tg-theme-button-color, #40a7e3); }
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--tg-theme-button-color, #40a7e3);
+    color: var(--tg-theme-button-text-color, #fff);
+    transition: filter 0.15s;
+}
+.btn:hover { filter: brightness(0.92); }
+.btn:active { filter: brightness(0.85); }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-secondary {
+    background: var(--tg-theme-bg-color, #fff);
+    color: var(--tg-theme-button-color, #40a7e3);
+}
+.result-box {
+    margin-top: 8px; padding: 8px 10px; border-radius: 6px;
+    background: var(--tg-theme-bg-color, #fff);
+    font-size: 12px; word-break: break-all; min-height: 20px;
+    color: var(--tg-theme-text-color, #000);
+}
+.status { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.status-ok { background: #34c75920; color: #34c759; }
+.status-err { background: #ff3b3020; color: #ff3b30; }
+.status-wait { background: #ff950020; color: #ff9500; }
+
+/* 3D scene */
+.scene { width: 120px; height: 120px; perspective: 400px; margin: 0 auto 10px; }
+.cube {
+    width: 100%; height: 100%; position: relative;
+    transform-style: preserve-3d; transition: transform 0.1s;
+}
+.face {
+    position: absolute; width: 120px; height: 120px;
+    border: 2px solid var(--tg-theme-button-color, #40a7e3);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--tg-theme-button-color, #40a7e3);
+    background: var(--tg-theme-bg-color, rgba(255,255,255,0.85));
+    backface-visibility: visible;
+}
+.face-front  { transform: rotateY(0deg) translateZ(60px); }
+.face-back   { transform: rotateY(180deg) translateZ(60px); }
+.face-right  { transform: rotateY(90deg) translateZ(60px); }
+.face-left   { transform: rotateY(-90deg) translateZ(60px); }
+.face-top    { transform: rotateX(90deg) translateZ(60px); }
+.face-bottom { transform: rotateX(-90deg) translateZ(60px); }
+
+/* Location dot */
+.loc-map {
+    width: 100%; height: 100px; border-radius: 8px; position: relative;
+    background: var(--tg-theme-bg-color, #fff); overflow: hidden;
+}
+.loc-grid {
+    position: absolute; inset: 0;
+    background-image:
+        linear-gradient(var(--tg-theme-section-separator-color, #e7e7e7) 1px, transparent 1px),
+        linear-gradient(90deg, var(--tg-theme-section-separator-color, #e7e7e7) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+.loc-dot {
+    position: absolute; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--tg-theme-button-color, #40a7e3);
+    box-shadow: 0 0 0 4px rgba(64,167,227,0.2);
+    transform: translate(-50%, -50%); transition: all 0.3s;
+}
+.loc-label {
+    position: absolute; bottom: 4px; right: 6px;
+    font-size: 10px; color: var(--tg-theme-hint-color, #999);
+}
+
+/* Fingerprint */
+.fp-circle {
+    width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 10px;
+    border: 3px solid var(--tg-theme-section-separator-color, #e7e7e7);
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.3s, background 0.3s;
+    font-size: 28px;
+}
+.fp-circle.scanning { border-color: var(--tg-theme-button-color, #40a7e3); animation: fp-pulse 1s infinite; }
+.fp-circle.ok { border-color: #34c759; background: #34c75915; }
+.fp-circle.fail { border-color: #ff3b30; background: #ff3b3015; }
+@keyframes fp-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(64,167,227,0.3); } 50% { box-shadow: 0 0 0 10px rgba(64,167,227,0); } }
+</style>
+</head>
+<body>
+
+<!-- SENSORS -->
+<div class="section" id="sec-sensors">
+    <div class="section-title">Sensors</div>
+    <div class="scene"><div class="cube" id="cube">
+        <div class="face face-front">Front</div>
+        <div class="face face-back">Back</div>
+        <div class="face face-right">Right</div>
+        <div class="face face-left">Left</div>
+        <div class="face face-top">Top</div>
+        <div class="face face-bottom">Bot</div>
+    </div></div>
+    <div id="sensor-data">
+        <div class="row"><span class="label">Ax</span><div class="bar-wrap"><div class="bar" id="bar-ax" style="width:50%"></div></div><span class="value" id="v-ax">0.00</span></div>
+        <div class="row"><span class="label">Ay</span><div class="bar-wrap"><div class="bar" id="bar-ay" style="width:50%"></div></div><span class="value" id="v-ay">0.00</span></div>
+        <div class="row"><span class="label">Az</span><div class="bar-wrap"><div class="bar" id="bar-az" style="width:50%"></div></div><span class="value" id="v-az">0.00</span></div>
+        <div class="row"><span class="label">&alpha;</span><div class="bar-wrap"><div class="bar" id="bar-alpha" style="width:0%"></div></div><span class="value" id="v-alpha">0.0</span></div>
+        <div class="row"><span class="label">&beta;</span><div class="bar-wrap"><div class="bar" id="bar-beta" style="width:50%"></div></div><span class="value" id="v-beta">0.0</span></div>
+        <div class="row"><span class="label">&gamma;</span><div class="bar-wrap"><div class="bar" id="bar-gamma" style="width:50%"></div></div><span class="value" id="v-gamma">0.0</span></div>
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+        <button class="btn" id="btn-sensor-start">Start sensors</button>
+        <button class="btn btn-secondary" id="btn-sensor-stop" disabled>Stop</button>
+    </div>
+</div>
+
+<!-- LOCATION -->
+<div class="section">
+    <div class="section-title">Location</div>
+    <div class="loc-map" id="loc-map">
+        <div class="loc-grid"></div>
+        <div class="loc-dot" id="loc-dot" style="left:50%;top:50%"></div>
+        <div class="loc-label" id="loc-label">--</div>
+    </div>
+    <div class="btn-row" style="margin-top:8px">
+        <button class="btn" id="btn-location">Get Location</button>
+    </div>
+</div>
+
+<!-- QR SCANNER -->
+<div class="section">
+    <div class="section-title">QR Scanner</div>
+    <div class="btn-row">
+        <button class="btn" id="btn-qr-screen">Scan (screen)</button>
+        <button class="btn btn-secondary" id="btn-qr-camera">Scan (camera)</button>
+    </div>
+    <div class="result-box" id="qr-result">No scan yet</div>
+</div>
+
+<!-- BIOMETRY -->
+<div class="section" style="text-align:center">
+    <div class="section-title" style="text-align:left">Biometry</div>
+    <div class="fp-circle" id="fp-circle">&#128274;</div>
+    <div class="value" id="fp-status" style="margin-bottom:8px">Tap to authenticate</div>
+    <button class="btn" id="btn-bio">Authenticate</button>
+</div>
+
+<!-- CLIPBOARD -->
+<div class="section">
+    <div class="section-title">Clipboard</div>
+    <div class="btn-row">
+        <button class="btn" id="btn-clip-read">Read clipboard</button>
+    </div>
+    <div class="result-box" id="clip-result">--</div>
+</div>
+
+<!-- PERMISSIONS -->
+<div class="section">
+    <div class="section-title">Permissions</div>
+    <div class="btn-row">
+        <button class="btn" id="btn-write-access">Request write access</button>
+        <button class="btn btn-secondary" id="btn-contact">Request contact</button>
+    </div>
+    <div class="result-box" id="perm-result">--</div>
+</div>
+
+<!-- POPUPS -->
+<div class="section">
+    <div class="section-title">Popups</div>
+    <div class="btn-row">
+        <button class="btn" id="btn-popup">Popup</button>
+        <button class="btn btn-secondary" id="btn-alert">Alert</button>
+        <button class="btn btn-secondary" id="btn-confirm">Confirm</button>
+    </div>
+    <div class="result-box" id="popup-result">--</div>
+</div>
+
+<!-- HAPTIC -->
+<div class="section">
+    <div class="section-title">Haptic Feedback</div>
+    <div class="btn-row">
+        <button class="btn" id="btn-haptic-light">Light</button>
+        <button class="btn" id="btn-haptic-medium">Medium</button>
+        <button class="btn" id="btn-haptic-heavy">Heavy</button>
+        <button class="btn btn-secondary" id="btn-haptic-success">Success</button>
+        <button class="btn btn-secondary" id="btn-haptic-error">Error</button>
+    </div>
+</div>
+
+<!-- THEME -->
+<div class="section">
+    <div class="section-title">Theme &amp; Header</div>
+    <div class="btn-row">
+        <button class="btn" id="btn-header-orange" style="background:#ff5500">Header</button>
+        <button class="btn" id="btn-header-blue" style="background:#168acd">Header</button>
+        <button class="btn" id="btn-header-dark" style="background:#1a1a2e;color:#fff">Header</button>
+        <button class="btn btn-secondary" id="btn-header-reset">Reset</button>
+    </div>
+</div>
+
+<!-- INFO -->
+<div class="section">
+    <div class="section-title">Environment</div>
+    <div class="result-box" id="env-info">Loading...</div>
+</div>
+
+<script>
+(function() {
+    var tg = window.Telegram && window.Telegram.WebApp;
+    if (!tg) { document.getElementById('env-info').textContent = 'Telegram.WebApp not available'; return; }
+
+    tg.ready();
+    tg.expand();
+
+    // Environment info
+    var u = tg.initDataUnsafe || {};
+    document.getElementById('env-info').textContent =
+        'v' + tg.version + ' | ' + tg.platform + ' | ' + tg.colorScheme +
+        (u.user ? ' | ' + u.user.first_name + ' (id:' + u.user.id + ')' : '');
+
+    // ── SENSORS ──
+    var sensorsRunning = false;
+    var cube = document.getElementById('cube');
+
+    function updateBar(id, value, min, max) {
+        var pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+        var bar = document.getElementById(id);
+        if (bar) bar.style.width = pct + '%';
+    }
+
+    function startSensors() {
+        if (sensorsRunning) return;
+        sensorsRunning = true;
+        document.getElementById('btn-sensor-start').disabled = true;
+        document.getElementById('btn-sensor-stop').disabled = false;
+
+        if (tg.Accelerometer) {
+            tg.Accelerometer.start({refresh_rate: 100});
+            tg.onEvent('accelerometerChanged', function() {
+                var x = tg.Accelerometer.x, y = tg.Accelerometer.y, z = tg.Accelerometer.z;
+                document.getElementById('v-ax').textContent = x.toFixed(2);
+                document.getElementById('v-ay').textContent = y.toFixed(2);
+                document.getElementById('v-az').textContent = z.toFixed(2);
+                updateBar('bar-ax', x, -20, 20);
+                updateBar('bar-ay', y, -20, 20);
+                updateBar('bar-az', z, -20, 20);
+            });
+        }
+
+        if (tg.DeviceOrientation) {
+            tg.DeviceOrientation.start({refresh_rate: 100});
+            tg.onEvent('deviceOrientationChanged', function() {
+                var a = tg.DeviceOrientation.alpha;
+                var b = tg.DeviceOrientation.beta;
+                var g = tg.DeviceOrientation.gamma;
+                document.getElementById('v-alpha').textContent = a.toFixed(1);
+                document.getElementById('v-beta').textContent = b.toFixed(1);
+                document.getElementById('v-gamma').textContent = g.toFixed(1);
+                updateBar('bar-alpha', a, 0, 360);
+                updateBar('bar-beta', b, -180, 180);
+                updateBar('bar-gamma', g, -90, 90);
+                cube.style.transform = 'rotateX(' + (-b) + 'deg) rotateY(' + g + 'deg) rotateZ(' + a + 'deg)';
+            });
+        }
+    }
+
+    function stopSensors() {
+        sensorsRunning = false;
+        document.getElementById('btn-sensor-start').disabled = false;
+        document.getElementById('btn-sensor-stop').disabled = true;
+        if (tg.Accelerometer) tg.Accelerometer.stop();
+        if (tg.DeviceOrientation) tg.DeviceOrientation.stop();
+    }
+
+    document.getElementById('btn-sensor-start').onclick = startSensors;
+    document.getElementById('btn-sensor-stop').onclick = stopSensors;
+
+    // ── LOCATION ──
+    document.getElementById('btn-location').onclick = function() {
+        if (!tg.LocationManager) return;
+        tg.LocationManager.init(function() {
+            tg.LocationManager.getLocation(function(loc) {
+                if (!loc) { document.getElementById('loc-label').textContent = 'unavailable'; return; }
+                document.getElementById('loc-label').textContent =
+                    loc.latitude.toFixed(4) + ', ' + loc.longitude.toFixed(4);
+                // Map lat/lon to dot position (crude projection centered on 0,0)
+                var cx = ((loc.longitude + 180) / 360) * 100;
+                var cy = ((90 - loc.latitude) / 180) * 100;
+                document.getElementById('loc-dot').style.left = cx + '%';
+                document.getElementById('loc-dot').style.top = cy + '%';
+            });
+        });
+    };
+
+    // ── QR SCANNER ──
+    function doQrScan(mode) {
+        document.getElementById('qr-result').textContent = 'Scanning (' + mode + ')...';
+        tg.showScanQrPopup({text: 'mode:' + mode}, function(text) {
+            document.getElementById('qr-result').textContent = text || '(empty)';
+            return true;
+        });
+        tg.onEvent('scanQrPopupClosed', function h() {
+            tg.offEvent('scanQrPopupClosed', h);
+            var el = document.getElementById('qr-result');
+            if (el.textContent.indexOf('Scanning') === 0) el.textContent = 'Closed (no result)';
+        });
+    }
+    document.getElementById('btn-qr-screen').onclick = function() { doQrScan('screen'); };
+    document.getElementById('btn-qr-camera').onclick = function() { doQrScan('camera'); };
+
+    // ── BIOMETRY ──
+    document.getElementById('btn-bio').onclick = function() {
+        if (!tg.BiometricManager) return;
+        var circle = document.getElementById('fp-circle');
+        var status = document.getElementById('fp-status');
+        circle.className = 'fp-circle scanning';
+        status.textContent = 'Authenticating...';
+
+        tg.BiometricManager.init(function() {
+            if (!tg.BiometricManager.isBiometricAvailable) {
+                circle.className = 'fp-circle fail';
+                status.textContent = 'Biometry unavailable';
+                return;
+            }
+            var doAuth = function() {
+                tg.BiometricManager.authenticate({reason: 'Verify identity'}, function(ok, token) {
+                    if (ok) {
+                        circle.className = 'fp-circle ok';
+                        circle.innerHTML = '&#9989;';
+                        status.textContent = 'Authenticated (token: ' + (token || 'none') + ')';
+                    } else {
+                        circle.className = 'fp-circle fail';
+                        circle.innerHTML = '&#10060;';
+                        status.textContent = 'Auth failed';
+                    }
+                    setTimeout(function() {
+                        circle.className = 'fp-circle';
+                        circle.innerHTML = '&#128274;';
+                        status.textContent = 'Tap to authenticate';
+                    }, 3000);
+                });
+            };
+            if (!tg.BiometricManager.isAccessGranted) {
+                tg.BiometricManager.requestAccess({reason: 'Need biometry'}, function(granted) {
+                    if (granted) doAuth();
+                    else { circle.className = 'fp-circle fail'; status.textContent = 'Access denied'; }
+                });
+            } else {
+                doAuth();
+            }
+        });
+    };
+
+    // ── CLIPBOARD ──
+    document.getElementById('btn-clip-read').onclick = function() {
+        tg.readTextFromClipboard(function(text) {
+            document.getElementById('clip-result').textContent = text !== null ? '"' + text + '"' : 'null (no access)';
+        });
+    };
+
+    // ── PERMISSIONS ──
+    document.getElementById('btn-write-access').onclick = function() {
+        tg.requestWriteAccess(function(ok) {
+            document.getElementById('perm-result').textContent = 'Write access: ' + (ok ? 'granted' : 'denied');
+        });
+    };
+    document.getElementById('btn-contact').onclick = function() {
+        tg.requestContact(function(ok) {
+            document.getElementById('perm-result').textContent = 'Contact: ' + (ok ? 'sent' : 'denied');
+        });
+    };
+
+    // ── POPUPS ──
+    document.getElementById('btn-popup').onclick = function() {
+        tg.showPopup({
+            title: 'Test Popup',
+            message: 'Choose an action',
+            buttons: [
+                {id: 'ok', type: 'ok', text: 'OK'},
+                {id: 'cancel', type: 'cancel'},
+                {id: 'custom', type: 'default', text: 'Custom'}
+            ]
+        }, function(id) {
+            document.getElementById('popup-result').textContent = 'Popup closed: button="' + id + '"';
+        });
+    };
+    document.getElementById('btn-alert').onclick = function() {
+        tg.showAlert('This is an alert from the playground', function() {
+            document.getElementById('popup-result').textContent = 'Alert closed';
+        });
+    };
+    document.getElementById('btn-confirm').onclick = function() {
+        tg.showConfirm('Do you confirm this action?', function(ok) {
+            document.getElementById('popup-result').textContent = 'Confirm: ' + (ok ? 'yes' : 'no');
+        });
+    };
+
+    // ── HAPTIC ──
+    document.getElementById('btn-haptic-light').onclick = function() { tg.HapticFeedback.impactOccurred('light'); };
+    document.getElementById('btn-haptic-medium').onclick = function() { tg.HapticFeedback.impactOccurred('medium'); };
+    document.getElementById('btn-haptic-heavy').onclick = function() { tg.HapticFeedback.impactOccurred('heavy'); };
+    document.getElementById('btn-haptic-success').onclick = function() { tg.HapticFeedback.notificationOccurred('success'); };
+    document.getElementById('btn-haptic-error').onclick = function() { tg.HapticFeedback.notificationOccurred('error'); };
+
+    // ── THEME ──
+    document.getElementById('btn-header-orange').onclick = function() { tg.setHeaderColor('#ff5500'); };
+    document.getElementById('btn-header-blue').onclick = function() { tg.setHeaderColor('#168acd'); };
+    document.getElementById('btn-header-dark').onclick = function() { tg.setHeaderColor('#1a1a2e'); };
+    document.getElementById('btn-header-reset').onclick = function() { tg.setHeaderColor(tg.themeParams.header_bg_color || '#ffffff'); };
+
+    // Auto-start sensors on load for demo effect
+    setTimeout(startSensors, 500);
+})();
+</script>
+</body>
+</html>
