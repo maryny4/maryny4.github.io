@@ -200,6 +200,24 @@ body {
     <div class="result-box" id="popup-result">--</div>
 </div>
 
+<!-- BUTTONS -->
+<div class="section">
+    <div class="section-title">SDK Buttons</div>
+    <div class="btn-row">
+        <button class="btn" id="btn-main-show">Show Main</button>
+        <button class="btn btn-secondary" id="btn-main-hide">Hide Main</button>
+    </div>
+    <div class="btn-row" style="margin-top:6px">
+        <button class="btn" id="btn-sec-show">Show Secondary</button>
+        <button class="btn btn-secondary" id="btn-sec-hide">Hide Secondary</button>
+    </div>
+    <div class="btn-row" style="margin-top:6px">
+        <button class="btn" id="btn-back-show">Show Back</button>
+        <button class="btn btn-secondary" id="btn-back-hide">Hide Back</button>
+    </div>
+    <div class="result-box" id="btn-result">--</div>
+</div>
+
 <!-- HAPTIC -->
 <div class="section">
     <div class="section-title">Haptic Feedback</div>
@@ -426,6 +444,46 @@ body {
     document.getElementById('btn-haptic-heavy').onclick = function() { tg.HapticFeedback.impactOccurred('heavy'); };
     document.getElementById('btn-haptic-success').onclick = function() { tg.HapticFeedback.notificationOccurred('success'); };
     document.getElementById('btn-haptic-error').onclick = function() { tg.HapticFeedback.notificationOccurred('error'); };
+
+    // ── SDK BUTTONS ──
+    var btnResult = document.getElementById('btn-result');
+
+    document.getElementById('btn-main-show').onclick = function() {
+        tg.MainButton.setText('Main Action').show();
+        tg.MainButton.onClick(function() {
+            btnResult.textContent = 'MainButton clicked!';
+        });
+        btnResult.textContent = 'MainButton shown';
+    };
+    document.getElementById('btn-main-hide').onclick = function() {
+        tg.MainButton.hide();
+        btnResult.textContent = 'MainButton hidden';
+    };
+    document.getElementById('btn-sec-show').onclick = function() {
+        if (!tg.SecondaryButton) { btnResult.textContent = 'SecondaryButton N/A'; return; }
+        tg.SecondaryButton.setText('Secondary').show();
+        tg.SecondaryButton.onClick(function() {
+            btnResult.textContent = 'SecondaryButton clicked!';
+        });
+        btnResult.textContent = 'SecondaryButton shown';
+    };
+    document.getElementById('btn-sec-hide').onclick = function() {
+        if (tg.SecondaryButton) tg.SecondaryButton.hide();
+        btnResult.textContent = 'SecondaryButton hidden';
+    };
+    document.getElementById('btn-back-show').onclick = function() {
+        tg.BackButton.show();
+        tg.onEvent('backButtonClicked', function h() {
+            tg.offEvent('backButtonClicked', h);
+            btnResult.textContent = 'BackButton clicked!';
+            tg.BackButton.hide();
+        });
+        btnResult.textContent = 'BackButton shown (click arrow in header)';
+    };
+    document.getElementById('btn-back-hide').onclick = function() {
+        tg.BackButton.hide();
+        btnResult.textContent = 'BackButton hidden';
+    };
 
     // ── THEME ──
     document.getElementById('btn-header-orange').onclick = function() { tg.setHeaderColor('#ff5500'); };
