@@ -2,684 +2,543 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>SDK Test Suite</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>tgwebview Test</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 13px;
-    padding: 12px;
-    background: var(--tg-theme-bg-color, #fff);
-    color: var(--tg-theme-text-color, #000);
-}
-#summary {
-    padding: 10px 12px;
-    border-radius: 8px;
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #000000);
+    --hint: var(--tg-theme-hint-color, #999999);
+    --link: var(--tg-theme-link-color, #168acd);
+    --btn: var(--tg-theme-button-color, #40a7e3);
+    --btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --sec-bg: var(--tg-theme-secondary-bg-color, #f1f1f1);
+    --section-bg: var(--tg-theme-section-bg-color, #ffffff);
+    --section-header: var(--tg-theme-section-header-text-color, #168acd);
+    --subtitle: var(--tg-theme-subtitle-text-color, #999999);
+    --destructive: var(--tg-theme-destructive-text-color, #d14e4e);
+    --separator: var(--tg-theme-section-separator-color, #e7e7e7);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+    padding-top: 60px;
+    padding-bottom: 100px;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .section {
+    background: var(--section-bg);
+    border-radius: 12px;
+    padding: 16px;
     margin-bottom: 12px;
+    border: 1px solid var(--separator);
+  }
+  .section-title {
+    font-size: 13px;
     font-weight: 600;
+    color: var(--section-header);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--separator);
     font-size: 14px;
-    background: var(--tg-theme-secondary-bg-color, #f1f1f1);
-}
-#info {
-    font-size: 11px;
-    color: var(--tg-theme-hint-color, #999);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--hint); }
+  .info-value { color: var(--text); font-weight: 500; max-width: 60%; text-align: right; word-break: break-all; }
+
+  .btn-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .btn-grid-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .btn {
+    background: var(--btn);
+    color: var(--btn-text);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    font-family: inherit;
+  }
+  .btn:active { opacity: 0.7; }
+  .btn-outline {
+    background: transparent;
+    color: var(--btn);
+    border: 1.5px solid var(--btn);
+  }
+  .btn-danger {
+    background: var(--destructive);
+    color: #fff;
+  }
+  .btn-full {
+    grid-column: 1 / -1;
+  }
+
+  .log-area {
+    background: var(--sec-bg);
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 10px;
+    font-size: 12px;
+    font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+    color: var(--text);
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .log-area:empty { display: none; }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
     margin-bottom: 8px;
-    line-height: 1.5;
-}
-table { width: 100%; border-collapse: collapse; }
-th {
-    text-align: left; padding: 6px 8px; font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    color: var(--tg-theme-hint-color, #999);
-    border-bottom: 1px solid var(--tg-theme-section-separator-color, #e7e7e7);
-}
-td {
-    padding: 5px 8px;
-    border-bottom: 1px solid var(--tg-theme-section-separator-color, #e7e7e7);
-    vertical-align: top;
-}
-td:first-child { font-weight: 500; white-space: nowrap; }
-td:last-child {
-    font-size: 11px; color: var(--tg-theme-hint-color, #999);
-    word-break: break-all; max-width: 160px;
-}
-.pass { color: #34c759; }
-.fail { color: #ff3b30; }
-.skip { color: #ff9500; }
-.wait { color: var(--tg-theme-link-color, #168acd); }
-.g td {
-    font-weight: 700; font-size: 11px; text-transform: uppercase;
-    letter-spacing: 0.5px; padding-top: 10px; border-bottom: none;
-    color: var(--tg-theme-section-header-text-color, #168acd);
-}
+  }
+  .input-row input {
+    flex: 1;
+    background: var(--sec-bg);
+    border: 1px solid var(--separator);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: inherit;
+    outline: none;
+  }
+  .input-row input::placeholder { color: var(--hint); }
+
+  .tag {
+    display: inline-block;
+    background: var(--sec-bg);
+    color: var(--hint);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 6px;
+    font-weight: 500;
+    vertical-align: middle;
+  }
+  .tag-ok { background: #d4edda; color: #155724; }
+  .tag-err { background: #f8d7da; color: #721c24; }
 </style>
 </head>
 <body>
 
-<div id="summary">Running...</div>
-<div id="info"></div>
-<table>
-<thead><tr><th>Test</th><th>Status</th><th>Details</th></tr></thead>
-<tbody id="r"></tbody>
-</table>
+<!-- Init Data -->
+<div class="section" id="s-init">
+  <div class="section-title">Init Data</div>
+  <div id="init-info"></div>
+</div>
+
+<!-- Theme -->
+<div class="section">
+  <div class="section-title">Theme</div>
+  <div id="theme-info"></div>
+  <div class="btn-grid" style="margin-top:10px">
+    <button class="btn" onclick="setHeader('#2e7d32')">Header Green</button>
+    <button class="btn" onclick="setHeader('#1565c0')">Header Blue</button>
+    <button class="btn" onclick="setHeader('#000000')">Header Black</button>
+    <button class="btn" onclick="setHeader('#ffffff')">Header White</button>
+    <button class="btn btn-outline" onclick="setBg('#1a1a2e')">BG Dark</button>
+    <button class="btn btn-outline" onclick="setBg('#ffffff')">BG Light</button>
+  </div>
+</div>
+
+<!-- Main Button -->
+<div class="section">
+  <div class="section-title">Main Button</div>
+  <div class="btn-grid">
+    <button class="btn" onclick="mainBtn('show')">Show</button>
+    <button class="btn btn-outline" onclick="mainBtn('hide')">Hide</button>
+    <button class="btn" onclick="mainBtn('progress')">Progress On</button>
+    <button class="btn btn-outline" onclick="mainBtn('progress_off')">Progress Off</button>
+    <button class="btn btn-full" onclick="mainBtn('text')">Set Text: "Continue"</button>
+  </div>
+  <div class="log-area" id="log-main"></div>
+</div>
+
+<!-- Back / Settings Buttons -->
+<div class="section">
+  <div class="section-title">Navigation Buttons</div>
+  <div class="btn-grid">
+    <button class="btn" onclick="backBtn('show')">Back: Show</button>
+    <button class="btn btn-outline" onclick="backBtn('hide')">Back: Hide</button>
+    <button class="btn" onclick="settingsBtn('show')">Settings: Show</button>
+    <button class="btn btn-outline" onclick="settingsBtn('hide')">Settings: Hide</button>
+  </div>
+  <div class="log-area" id="log-nav"></div>
+</div>
+
+<!-- Popups / Alerts -->
+<div class="section">
+  <div class="section-title">Popups</div>
+  <div class="btn-grid btn-grid-3">
+    <button class="btn" onclick="testAlert()">Alert</button>
+    <button class="btn" onclick="testConfirm()">Confirm</button>
+    <button class="btn" onclick="testPopup()">Popup</button>
+  </div>
+  <div class="log-area" id="log-popup"></div>
+</div>
+
+<!-- QR / Clipboard -->
+<div class="section">
+  <div class="section-title">QR Scanner & Clipboard</div>
+  <div class="btn-grid">
+    <button class="btn" onclick="testQR()">Scan QR</button>
+    <button class="btn" onclick="testClipboard()">Read Clipboard</button>
+  </div>
+  <div class="log-area" id="log-qr"></div>
+</div>
+
+<!-- CloudStorage -->
+<div class="section">
+  <div class="section-title">CloudStorage <span class="tag" id="cloud-tag">MTProto</span></div>
+  <div class="input-row">
+    <input id="cs-key" placeholder="key" value="test_key">
+    <input id="cs-val" placeholder="value" value="hello world">
+  </div>
+  <div class="btn-grid">
+    <button class="btn" onclick="csSave()">Save</button>
+    <button class="btn" onclick="csGet()">Get</button>
+    <button class="btn btn-outline" onclick="csKeys()">Get Keys</button>
+    <button class="btn btn-danger" onclick="csDelete()">Delete</button>
+  </div>
+  <div class="log-area" id="log-cloud"></div>
+</div>
+
+<!-- Write Access -->
+<div class="section">
+  <div class="section-title">Write Access</div>
+  <div class="btn-grid">
+    <button class="btn btn-full" onclick="testWriteAccess()">Request Write Access</button>
+  </div>
+  <div class="log-area" id="log-write"></div>
+</div>
+
+<!-- Haptic Feedback -->
+<div class="section">
+  <div class="section-title">Haptic Feedback</div>
+  <div class="btn-grid btn-grid-3">
+    <button class="btn" onclick="haptic('impact','light')">Light</button>
+    <button class="btn" onclick="haptic('impact','medium')">Medium</button>
+    <button class="btn" onclick="haptic('impact','heavy')">Heavy</button>
+    <button class="btn btn-outline" onclick="haptic('notification','success')">Success</button>
+    <button class="btn btn-outline" onclick="haptic('notification','warning')">Warning</button>
+    <button class="btn btn-outline" onclick="haptic('notification','error')">Error</button>
+    <button class="btn btn-full" onclick="haptic('selection','')">Selection Changed</button>
+  </div>
+</div>
+
+<!-- Biometry -->
+<div class="section">
+  <div class="section-title">Biometry</div>
+  <div class="btn-grid">
+    <button class="btn" onclick="bioInit()">Init</button>
+    <button class="btn" onclick="bioAuth()">Authenticate</button>
+  </div>
+  <div class="log-area" id="log-bio"></div>
+</div>
+
+<!-- Location -->
+<div class="section">
+  <div class="section-title">Location Manager</div>
+  <div class="btn-grid">
+    <button class="btn" onclick="locInit()">Init</button>
+    <button class="btn" onclick="locGet()">Get Location</button>
+  </div>
+  <div class="log-area" id="log-loc"></div>
+</div>
+
+<!-- Open Link -->
+<div class="section">
+  <div class="section-title">Links & Viewport</div>
+  <div class="btn-grid">
+    <button class="btn" onclick="testLink()">Open Link</button>
+    <button class="btn btn-outline" onclick="testExpand()">Expand</button>
+    <button class="btn btn-full" onclick="testClose()">Close Confirm</button>
+  </div>
+</div>
+
+<!-- Invoke Custom Method -->
+<div class="section">
+  <div class="section-title">Invoke Custom Method</div>
+  <div class="input-row">
+    <input id="invoke-method" placeholder="method" value="getStorageValues">
+    <input id="invoke-params" placeholder='{"keys":["k"]}' value='{"keys":["test_key"]}'>
+  </div>
+  <div class="btn-grid">
+    <button class="btn btn-full" onclick="testInvoke()">Invoke</button>
+  </div>
+  <div class="log-area" id="log-invoke"></div>
+</div>
+
+<!-- Raw Event Log -->
+<div class="section">
+  <div class="section-title">Event Log</div>
+  <div class="log-area" id="log-events" style="display:block;min-height:60px;"></div>
+  <div class="btn-grid" style="margin-top:8px">
+    <button class="btn btn-outline btn-full" onclick="document.getElementById('log-events').textContent=''">Clear</button>
+  </div>
+</div>
 
 <script>
+var tg = window.Telegram.WebApp;
+
+// ─── Logging ───
+function logTo(id, msg) {
+  var el = document.getElementById(id);
+  var time = new Date().toLocaleTimeString('en', {hour12:false});
+  el.textContent += '[' + time + '] ' + msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+function elog(msg) { logTo('log-events', msg); }
+
+// ─── Init Data ───
 (function() {
-    var tg = window.Telegram && window.Telegram.WebApp;
-    var tbody = document.getElementById('r');
-    var sumEl = document.getElementById('summary');
-    var P = 0, F = 0, S = 0, T = 3000;
-
-    if (tg) {
-        document.getElementById('info').textContent =
-            'v' + tg.version + ' | ' + tg.platform + ' | ' + tg.colorScheme +
-            ' | initData: ' + (tg.initData ? tg.initData.substring(0, 40) + '...' : 'none');
-    }
-
-    function grp(n) { var tr = document.createElement('tr'); tr.className = 'g'; tr.innerHTML = '<td colspan="3">' + n + '</td>'; tbody.appendChild(tr); }
-    function row(n) { var tr = document.createElement('tr'); tr.innerHTML = '<td>' + n + '</td><td class="wait">...</td><td></td>'; tbody.appendChild(tr); return tr; }
-    function set(tr, s, d) {
-        var c = tr.getElementsByTagName('td');
-        c[1].className = s; c[1].textContent = s.toUpperCase(); c[2].textContent = d || '';
-        if (s === 'pass') P++; else if (s === 'fail') F++; else S++;
-        sumEl.textContent = P + '/' + (P+F+S) + ' passed' + (F ? ', ' + F + ' failed' : '') + (S ? ', ' + S + ' skipped' : '');
-        sumEl.style.color = F ? '#ff3b30' : '#34c759';
-    }
-
-    function tmo(fn, ms) {
-        return new Promise(function(res) {
-            var d = false;
-            var t = setTimeout(function() { if (!d) { d = true; res({s:'fail',d:'timeout'}); }}, ms || T);
-            try {
-                fn(function(s, detail) { if (!d) { d = true; clearTimeout(t); res({s:s,d:detail}); }});
-            } catch(e) { if (!d) { d = true; clearTimeout(t); res({s:'fail',d:e.message}); }}
-        });
-    }
-    function sync(fn) { return tmo(function(done) { var r = fn(); done(r.s, r.d); }, 500); }
-    function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
-
-    var tests = [];
-    function g(n) { tests.push({g:n}); }
-    function t(n, fn) { tests.push({n:n,fn:fn}); }
-
-    // ═══════════════════════════════════════════
-    // PROPERTIES
-    // ═══════════════════════════════════════════
-    g('Properties');
-
-    t('initData', function() { return sync(function() {
-        return tg.initData ? {s:'pass',d:tg.initData.substring(0,50)} : {s:'fail',d:'empty'};
-    }); });
-    t('initDataUnsafe', function() { return sync(function() {
-        var u = tg.initDataUnsafe || {};
-        return u.user ? {s:'pass',d:'user.id=' + u.user.id} : {s:'fail',d:'no user'};
-    }); });
-    t('version', function() { return sync(function() {
-        return tg.version ? {s:'pass',d:tg.version} : {s:'fail',d:'missing'};
-    }); });
-    t('platform', function() { return sync(function() {
-        return tg.platform ? {s:'pass',d:tg.platform} : {s:'fail',d:'missing'};
-    }); });
-    t('colorScheme', function() { return sync(function() {
-        var s = tg.colorScheme;
-        return (s==='light'||s==='dark') ? {s:'pass',d:s} : {s:'fail',d:String(s)};
-    }); });
-    t('themeParams', function() { return sync(function() {
-        var k = Object.keys(tg.themeParams||{});
-        return k.length >= 14 ? {s:'pass',d:k.length+' keys'} : {s:'fail',d:k.length+' keys'};
-    }); });
-    t('viewportHeight', function() { return sync(function() {
-        return tg.viewportHeight > 0 ? {s:'pass',d:tg.viewportHeight+'px'} : {s:'fail',d:'0'};
-    }); });
-    t('viewportStableHeight', function() { return sync(function() {
-        return tg.viewportStableHeight > 0 ? {s:'pass',d:tg.viewportStableHeight+'px'} : {s:'fail',d:'0'};
-    }); });
-    t('isExpanded', function() { return sync(function() {
-        return tg.isExpanded ? {s:'pass',d:'true'} : {s:'fail',d:'false'};
-    }); });
-    t('headerColor', function() { return sync(function() {
-        return tg.headerColor ? {s:'pass',d:tg.headerColor} : {s:'fail',d:'missing'};
-    }); });
-    t('backgroundColor', function() { return sync(function() {
-        return tg.backgroundColor ? {s:'pass',d:tg.backgroundColor} : {s:'fail',d:'missing'};
-    }); });
-    t('bottomBarColor', function() { return sync(function() {
-        return tg.bottomBarColor ? {s:'pass',d:tg.bottomBarColor} : {s:'skip',d:'N/A'};
-    }); });
-
-    // ═══════════════════════════════════════════
-    // UI CONTROLS
-    // ═══════════════════════════════════════════
-    g('UI Controls');
-
-    t('MainButton show/hide', function() { return tmo(function(done) {
-        tg.MainButton.setText('TEST').show();
-        setTimeout(function() {
-            var a = tg.MainButton.isVisible;
-            tg.MainButton.hide();
-            setTimeout(function() { done(a && !tg.MainButton.isVisible ? 'pass':'fail', 'visible='+a); }, 150);
-        }, 300);
-    }); });
-
-    t('MainButton click', function() { return tmo(function(done) {
-        tg.MainButton.setText('CLICK ME').show();
-        tg.MainButton.onClick(function handler() {
-            tg.MainButton.offClick(handler);
-            tg.MainButton.hide();
-            done('pass', 'clicked');
-        });
-        // Simulate click via postEvent
-        setTimeout(function() {
-            if (window.TelegramGameProxy) TelegramGameProxy.receiveEvent('main_button_pressed');
-        }, 200);
-    }); });
-
-    t('SecondaryButton show/hide', function() { return tmo(function(done) {
-        if (!tg.SecondaryButton) { done('skip','N/A'); return; }
-        tg.SecondaryButton.setText('SEC').show();
-        setTimeout(function() {
-            var a = tg.SecondaryButton.isVisible;
-            tg.SecondaryButton.hide();
-            setTimeout(function() { done(a && !tg.SecondaryButton.isVisible ? 'pass':'fail', 'visible='+a); }, 150);
-        }, 300);
-    }); });
-
-    t('BackButton show/hide', function() { return tmo(function(done) {
-        tg.BackButton.show();
-        setTimeout(function() {
-            var a = tg.BackButton.isVisible;
-            tg.BackButton.hide();
-            setTimeout(function() { done(a && !tg.BackButton.isVisible ? 'pass':'fail', 'visible='+a); }, 150);
-        }, 300);
-    }); });
-
-    t('BackButton click', function() { return tmo(function(done) {
-        tg.BackButton.show();
-        tg.onEvent('backButtonClicked', function handler() {
-            tg.offEvent('backButtonClicked', handler);
-            tg.BackButton.hide();
-            done('pass', 'clicked');
-        });
-        setTimeout(function() {
-            if (window.TelegramGameProxy) TelegramGameProxy.receiveEvent('back_button_pressed');
-        }, 200);
-    }); });
-
-    t('SettingsButton show/hide', function() { return tmo(function(done) {
-        if (!tg.SettingsButton) { done('skip','N/A'); return; }
-        tg.SettingsButton.show();
-        setTimeout(function() {
-            var a = tg.SettingsButton.isVisible;
-            tg.SettingsButton.hide();
-            setTimeout(function() { done(a && !tg.SettingsButton.isVisible ? 'pass':'fail', 'visible='+a); }, 150);
-        }, 300);
-    }); });
-
-    t('setHeaderColor', function() { return tmo(function(done) {
-        tg.setHeaderColor('#ff5500');
-        setTimeout(function() {
-            tg.setHeaderColor(tg.themeParams.header_bg_color || '#ffffff');
-            done('pass', '#ff5500');
-        }, 200);
-    }); });
-
-    t('setBackgroundColor', function() { return sync(function() {
-        try { tg.setBackgroundColor('#112233'); tg.setBackgroundColor(tg.themeParams.bg_color||'#fff'); return {s:'pass',d:'#112233'}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    t('setBottomBarColor', function() { return sync(function() {
-        if (!tg.setBottomBarColor) return {s:'skip',d:'N/A'};
-        try { tg.setBottomBarColor('#223344'); tg.setBottomBarColor(tg.themeParams.bottom_bar_bg_color||'#fff'); return {s:'pass',d:'#223344'}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    // ═══════════════════════════════════════════
-    // POPUPS
-    // ═══════════════════════════════════════════
-    g('Popups');
-
-    t('showPopup', function() { return tmo(function(done) {
-        tg.showPopup({title:'Test',message:'popup test',buttons:[{id:'ok',type:'ok'}]}, function(id) { done('pass','btn='+id); });
-    }); });
-
-    t('showAlert', function() { return tmo(function(done) {
-        tg.showAlert('alert test', function() { done('pass','closed'); });
-    }); });
-
-    t('showConfirm', function() { return tmo(function(done) {
-        tg.showConfirm('confirm?', function(ok) { done('pass','ok='+ok); });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // CLOUD STORAGE
-    // ═══════════════════════════════════════════
-    g('Cloud Storage');
-
-    t('set/get/remove', function() { return tmo(function(done) {
-        var k = '__t_' + Date.now(), v = 'v_' + Math.random();
-        tg.CloudStorage.setItem(k, v, function(e1) {
-            if (e1) { done('fail','set:'+e1); return; }
-            tg.CloudStorage.getItem(k, function(e2, got) {
-                tg.CloudStorage.removeItem(k, function() {});
-                if (e2) { done('fail','get:'+e2); return; }
-                done(got === v ? 'pass':'fail', 'expected='+v+' got='+got);
-            });
-        });
-    }); });
-
-    t('getKeys', function() { return tmo(function(done) {
-        tg.CloudStorage.getKeys(function(e, keys) { done(e?'fail':'pass', e||keys.length+' keys'); });
-    }); });
-
-    t('getItems (batch)', function() { return tmo(function(done) {
-        var k1 = '__tb1_'+Date.now(), k2 = '__tb2_'+Date.now();
-        tg.CloudStorage.setItem(k1, 'a', function() {
-            tg.CloudStorage.setItem(k2, 'b', function() {
-                tg.CloudStorage.getItems([k1,k2], function(e, vals) {
-                    tg.CloudStorage.removeItems([k1,k2], function(){});
-                    if (e) { done('fail',e); return; }
-                    done(vals[k1]==='a' && vals[k2]==='b' ? 'pass':'fail', JSON.stringify(vals));
-                });
-            });
-        });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // DEVICE STORAGE
-    // ═══════════════════════════════════════════
-    g('Device Storage');
-
-    t('save/get', function() { return tmo(function(done) {
-        if (!tg.DeviceStorage) { done('skip','N/A'); return; }
-        var k = '__td_'+Date.now();
-        tg.DeviceStorage.setItem(k, 'ds', function(e) {
-            if (e) { done('fail','save:'+e); return; }
-            tg.DeviceStorage.getItem(k, function(e2, got) {
-                tg.DeviceStorage.removeItem(k, function(){});
-                done(!e2 && got==='ds' ? 'pass':'fail', 'got='+got);
-            });
-        });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // SECURE STORAGE
-    // ═══════════════════════════════════════════
-    g('Secure Storage');
-
-    t('save/get', function() { return tmo(function(done) {
-        if (!tg.SecureStorage) { done('skip','N/A'); return; }
-        var k = '__ts_'+Date.now();
-        tg.SecureStorage.setItem(k, 'ss', function(e) {
-            if (e) { done('fail','save:'+e); return; }
-            tg.SecureStorage.getItem(k, function(e2, got) {
-                tg.SecureStorage.removeItem(k, function(){});
-                done(!e2 && got==='ss' ? 'pass':'fail', 'got='+got);
-            });
-        });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // PERMISSIONS
-    // ═══════════════════════════════════════════
-    g('Permissions');
-
-    t('requestWriteAccess', function() { return tmo(function(done) {
-        tg.requestWriteAccess(function(ok) { done('pass','granted='+ok); });
-    }); });
-
-    t('requestContact', function() { return tmo(function(done) {
-        tg.requestContact(function(ok) { done('pass','sent='+ok); });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // CLIPBOARD
-    // ═══════════════════════════════════════════
-    g('Clipboard');
-
-    t('readTextFromClipboard', function() { return tmo(function(done) {
-        tg.readTextFromClipboard(function(text) { done('pass','data='+JSON.stringify(text)); });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // BIOMETRY
-    // ═══════════════════════════════════════════
-    g('Biometry');
-
-    t('init + info', function() { return tmo(function(done) {
-        if (!tg.BiometricManager) { done('skip','N/A'); return; }
-        tg.BiometricManager.init(function() {
-            done('pass', 'inited='+tg.BiometricManager.isInited+' avail='+tg.BiometricManager.isBiometricAvailable+' type='+tg.BiometricManager.biometricType);
-        });
-    }); });
-
-    t('authenticate', function() { return tmo(function(done) {
-        if (!tg.BiometricManager) { done('skip','N/A'); return; }
-        tg.BiometricManager.authenticate({reason:'test'}, function(ok, token) {
-            done(ok ? 'pass':'fail', 'ok='+ok+' token='+(token||'null'));
-        });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // SENSORS
-    // ═══════════════════════════════════════════
-    g('Sensors');
-
-    t('Accelerometer start/data/stop', function() { return tmo(function(done) {
-        if (!tg.Accelerometer) { done('skip','N/A'); return; }
-        var gotData = false;
-        tg.onEvent('accelerometerChanged', function handler() {
-            if (gotData) return;
-            gotData = true;
-            tg.offEvent('accelerometerChanged', handler);
-            var x = tg.Accelerometer.x, y = tg.Accelerometer.y, z = tg.Accelerometer.z;
-            tg.Accelerometer.stop();
-            done('pass', 'x='+x.toFixed(2)+' y='+y.toFixed(2)+' z='+z.toFixed(2));
-        });
-        tg.onEvent('accelerometerFailed', function(e) {
-            done(e.error === 'UNSUPPORTED' ? 'skip':'fail', e.error);
-        });
-        tg.Accelerometer.start({refresh_rate: 100});
-    }); });
-
-    t('Gyroscope start/data/stop', function() { return tmo(function(done) {
-        if (!tg.Gyroscope) { done('skip','N/A'); return; }
-        var gotData = false;
-        tg.onEvent('gyroscopeChanged', function handler() {
-            if (gotData) return;
-            gotData = true;
-            tg.offEvent('gyroscopeChanged', handler);
-            var x = tg.Gyroscope.x, y = tg.Gyroscope.y, z = tg.Gyroscope.z;
-            tg.Gyroscope.stop();
-            done('pass', 'x='+x.toFixed(2)+' y='+y.toFixed(2)+' z='+z.toFixed(2));
-        });
-        tg.onEvent('gyroscopeFailed', function(e) {
-            done(e.error === 'UNSUPPORTED' ? 'skip':'fail', e.error);
-        });
-        tg.Gyroscope.start({refresh_rate: 100});
-    }); });
-
-    t('DeviceOrientation start/data/stop', function() { return tmo(function(done) {
-        if (!tg.DeviceOrientation) { done('skip','N/A'); return; }
-        var gotData = false;
-        tg.onEvent('deviceOrientationChanged', function handler() {
-            if (gotData) return;
-            gotData = true;
-            tg.offEvent('deviceOrientationChanged', handler);
-            var a = tg.DeviceOrientation.alpha, b = tg.DeviceOrientation.beta, g2 = tg.DeviceOrientation.gamma;
-            tg.DeviceOrientation.stop();
-            done('pass', 'a='+a.toFixed(1)+' b='+b.toFixed(1)+' g='+g2.toFixed(1));
-        });
-        tg.onEvent('deviceOrientationFailed', function(e) {
-            done(e.error === 'UNSUPPORTED' ? 'skip':'fail', e.error);
-        });
-        tg.DeviceOrientation.start({refresh_rate: 100});
-    }); });
-
-    // ═══════════════════════════════════════════
-    // LOCATION
-    // ═══════════════════════════════════════════
-    g('Location');
-
-    t('check availability', function() { return tmo(function(done) {
-        if (!tg.LocationManager) { done('skip','N/A'); return; }
-        tg.LocationManager.init(function() {
-            done('pass', 'avail='+tg.LocationManager.isLocationAvailable+' granted='+tg.LocationManager.isAccessGranted);
-        });
-    }); });
-
-    t('getLocation', function() { return tmo(function(done) {
-        if (!tg.LocationManager) { done('skip','N/A'); return; }
-        tg.LocationManager.getLocation(function(loc) {
-            if (loc && loc.latitude !== undefined) {
-                done('pass', loc.latitude.toFixed(4)+','+loc.longitude.toFixed(4));
-            } else {
-                done('fail', 'no data');
-            }
-        });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // QR SCANNER
-    // ═══════════════════════════════════════════
-    g('QR Scanner');
-
-    t('scan QR code', function() { return tmo(function(done) {
-        var gotText = false;
-        tg.showScanQrPopup({text:'Scan test'}, function(text) {
-            if (!gotText) {
-                gotText = true;
-                done(text ? 'pass':'fail', 'data='+JSON.stringify(text));
-            }
-            return true;
-        });
-        tg.onEvent('scanQrPopupClosed', function() {
-            if (!gotText) { gotText = true; done('pass', 'closed (no handler)'); }
-        });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // HAPTIC FEEDBACK
-    // ═══════════════════════════════════════════
-    g('Haptic Feedback');
-
-    t('impact', function() { return sync(function() {
-        try { tg.HapticFeedback.impactOccurred('medium'); return {s:'pass',d:'medium'}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-    t('notification', function() { return sync(function() {
-        try { tg.HapticFeedback.notificationOccurred('success'); return {s:'pass',d:'success'}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-    t('selection', function() { return sync(function() {
-        try { tg.HapticFeedback.selectionChanged(); return {s:'pass',d:'ok'}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    // ═══════════════════════════════════════════
-    // FULLSCREEN
-    // ═══════════════════════════════════════════
-    g('Fullscreen');
-
-    t('requestFullscreen', function() { return tmo(function(done) {
-        if (!tg.requestFullscreen) { done('skip','N/A'); return; }
-        tg.onEvent('fullscreenChanged', function h() {
-            tg.offEvent('fullscreenChanged', h);
-            done('pass', 'fullscreen='+tg.isFullscreen);
-            // Exit right away
-            if (tg.exitFullscreen) tg.exitFullscreen();
-        });
-        tg.onEvent('fullscreenFailed', function h2(e) {
-            tg.offEvent('fullscreenFailed', h2);
-            done(e.error==='UNSUPPORTED' ? 'skip':'fail', e.error);
-        });
-        tg.requestFullscreen();
-    }); });
-
-    // ═══════════════════════════════════════════
-    // HOME SCREEN
-    // ═══════════════════════════════════════════
-    g('Home Screen');
-
-    t('checkHomeScreenStatus', function() { return tmo(function(done) {
-        if (!tg.checkHomeScreenStatus) { done('skip','N/A'); return; }
-        tg.onEvent('homeScreenChecked', function h(e) { tg.offEvent('homeScreenChecked',h); done('pass','status='+(e.status||e)); });
-        tg.checkHomeScreenStatus();
-    }); });
-
-    // ═══════════════════════════════════════════
-    // EMOJI STATUS
-    // ═══════════════════════════════════════════
-    g('Emoji Status');
-
-    t('requestEmojiStatusAccess', function() { return tmo(function(done) {
-        if (!tg.requestEmojiStatusAccess) { done('skip','N/A'); return; }
-        tg.requestEmojiStatusAccess(function(ok) { done('pass','granted='+ok); });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // LINKS
-    // ═══════════════════════════════════════════
-    g('Links');
-
-    t('openLink (no crash)', function() { return sync(function() {
-        try { tg.openLink('https://example.com', {try_instant_view: false}); return {s:'pass',d:'opened'}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    t('openTelegramLink (no crash)', function() { return sync(function() {
-        try { tg.openTelegramLink('https://t.me/test'); return {s:'pass',d:'opened'}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    // ═══════════════════════════════════════════
-    // INVOICE
-    // ═══════════════════════════════════════════
-    g('Invoice');
-
-    t('openInvoice', function() { return tmo(function(done) {
-        tg.openInvoice('test_slug', function(status) { done('pass','status='+status); });
-    }); });
-
-    // ═══════════════════════════════════════════
-    // CLOSING / SWIPE BEHAVIOR
-    // ═══════════════════════════════════════════
-    g('Behavior');
-
-    t('closingConfirmation', function() { return sync(function() {
-        try { tg.enableClosingConfirmation(); var a = tg.isClosingConfirmationEnabled; tg.disableClosingConfirmation(); return {s:'pass',d:'enabled='+a}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    t('disableVerticalSwipes', function() { return sync(function() {
-        try {
-            if (!tg.disableVerticalSwipes) return {s:'skip',d:'N/A'};
-            tg.disableVerticalSwipes(); var a = tg.isVerticalSwipesEnabled;
-            tg.enableVerticalSwipes();
-            return {s:'pass',d:'disabled='+(!a)};
-        } catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    // ═══════════════════════════════════════════
-    // VIEWPORT EVENTS
-    // ═══════════════════════════════════════════
-    g('Viewport Events');
-
-    t('viewport resize event', function() { return tmo(function(done) {
-        tg.onEvent('viewportChanged', function h(e) {
-            tg.offEvent('viewportChanged', h);
-            done('pass', 'h='+e.viewportHeight+' stable='+e.isStateStable);
-        });
-        // Trigger by expanding
-        tg.expand();
-    }); });
-
-    t('theme_changed event', function() { return tmo(function(done) {
-        tg.onEvent('themeChanged', function h() {
-            tg.offEvent('themeChanged', h);
-            done('pass', 'scheme='+tg.colorScheme);
-        });
-        // Trigger theme request
-        if (window.TelegramWebviewProxy) TelegramWebviewProxy.postEvent('web_app_request_theme');
-    }); });
-
-    // ═══════════════════════════════════════════
-    // ANTI-DETECT
-    // ═══════════════════════════════════════════
-    g('Anti-detect');
-
-    t('pywebview hidden from keys', function() { return sync(function() {
-        var keys = Object.keys(window);
-        var found = keys.indexOf('pywebview') !== -1;
-        return found ? {s:'fail',d:'visible in Object.keys'} : {s:'pass',d:'hidden'};
-    }); });
-
-    t('pywebview not in for..in', function() { return sync(function() {
-        var found = false;
-        for (var k in window) { if (k === 'pywebview') { found = true; break; } }
-        return found ? {s:'fail',d:'visible in for..in'} : {s:'pass',d:'hidden'};
-    }); });
-
-    t('bridge internals hidden', function() { return sync(function() {
-        // Check that __tg_ prefixed globals are not visible
-        var keys = Object.keys(window);
-        var leaked = [];
-        for (var i = 0; i < keys.length; i++) {
-            if (keys[i].indexOf('__tg_') === 0) leaked.push(keys[i]);
-        }
-        return leaked.length === 0 ? {s:'pass',d:'clean'} : {s:'fail',d:'leaked: '+leaked.join(',')};
-    }); });
-
-    // ═══════════════════════════════════════════
-    // JS INJECTION (from Python app.js())
-    // ═══════════════════════════════════════════
-    g('JS Injection');
-
-    t('DOM read', function() { return sync(function() {
-        var title = document.title;
-        return title ? {s:'pass',d:title} : {s:'fail',d:'no title'};
-    }); });
-
-    t('DOM write', function() { return sync(function() {
-        var el = document.createElement('div');
-        el.id = '__test_inject';
-        el.textContent = 'injected';
-        document.body.appendChild(el);
-        var found = document.getElementById('__test_inject');
-        if (found) found.remove();
-        return found ? {s:'pass',d:'created+removed'} : {s:'fail',d:'not found'};
-    }); });
-
-    t('localStorage', function() { return sync(function() {
-        var k = '__test_ls_'+Date.now();
-        localStorage.setItem(k, 'x');
-        var v = localStorage.getItem(k);
-        localStorage.removeItem(k);
-        return v === 'x' ? {s:'pass',d:'read/write ok'} : {s:'fail',d:'got='+v};
-    }); });
-
-    t('fetch API', function() { return tmo(function(done) {
-        fetch(window.location.href, {method:'HEAD'}).then(function(r) {
-            done('pass', 'status='+r.status);
-        }).catch(function(e) { done('fail', e.message); });
-    }); });
-
-    t('XMLHttpRequest', function() { return tmo(function(done) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('HEAD', window.location.href);
-        xhr.onload = function() { done('pass', 'status='+xhr.status); };
-        xhr.onerror = function() { done('fail', 'network error'); };
-        xhr.send();
-    }); });
-
-    t('eval() works', function() { return sync(function() {
-        try { var r = eval('1+2+3'); return {s:'pass',d:'result='+r}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    t('new Function() works', function() { return sync(function() {
-        try { var fn = new Function('return 42'); return {s:'pass',d:'result='+fn()}; }
-        catch(e) { return {s:'fail',d:e.message}; }
-    }); });
-
-    // ═══════════════════════════════════════════
-    // RUN
-    // ═══════════════════════════════════════════
-    async function run() {
-        if (tg) { tg.ready(); tg.expand(); }
-        for (var i = 0; i < tests.length; i++) {
-            var x = tests[i];
-            if (x.g) { grp(x.g); continue; }
-            var tr = row(x.n);
-            try { var r = await x.fn(); set(tr, r.s, r.d); }
-            catch(e) { set(tr, 'fail', e.message); }
-            await delay(50);
-        }
-    }
-    run();
+  var info = document.getElementById('init-info');
+  var rows = [
+    ['Platform', tg.platform],
+    ['Version', tg.version],
+    ['Color Scheme', tg.colorScheme],
+    ['Viewport Height', tg.viewportHeight + 'px'],
+    ['Stable Height', tg.viewportStableHeight + 'px'],
+    ['Expanded', tg.isExpanded],
+    ['initData', tg.initData ? tg.initData.substring(0, 50) + '...' : '(empty)'],
+    ['User', tg.initDataUnsafe.user ? JSON.stringify(tg.initDataUnsafe.user) : '(none)'],
+  ];
+  info.innerHTML = rows.map(function(r) {
+    return '<div class="info-row"><span class="info-label">' + r[0] +
+           '</span><span class="info-value">' + r[1] + '</span></div>';
+  }).join('');
 })();
+
+// ─── Theme ───
+(function() {
+  var info = document.getElementById('theme-info');
+  var tp = tg.themeParams;
+  var keys = ['bg_color','text_color','hint_color','link_color','button_color',
+              'button_text_color','secondary_bg_color','header_bg_color'];
+  info.innerHTML = keys.map(function(k) {
+    var v = tp[k] || '—';
+    var swatch = v.startsWith('#') ?
+      '<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:'+v+';margin-right:6px;vertical-align:middle;border:1px solid rgba(0,0,0,0.1)"></span>' : '';
+    return '<div class="info-row"><span class="info-label">' + k +
+           '</span><span class="info-value">' + swatch + v + '</span></div>';
+  }).join('');
+})();
+
+function setHeader(color) {
+  tg.setHeaderColor(color);
+  elog('setHeaderColor(' + color + ')');
+}
+function setBg(color) {
+  tg.setBackgroundColor(color);
+  elog('setBackgroundColor(' + color + ')');
+}
+
+// ─── Main Button ───
+tg.MainButton.onClick(function() {
+  logTo('log-main', 'MainButton clicked!');
+  elog('MainButton.onClick fired');
+});
+function mainBtn(action) {
+  switch(action) {
+    case 'show': tg.MainButton.setText('Submit').show(); break;
+    case 'hide': tg.MainButton.hide(); break;
+    case 'progress': tg.MainButton.showProgress(true); break;
+    case 'progress_off': tg.MainButton.hideProgress(); break;
+    case 'text': tg.MainButton.setText('Continue'); break;
+  }
+  logTo('log-main', 'MainButton.' + action);
+}
+
+// ─── Back / Settings ───
+tg.BackButton.onClick(function() {
+  logTo('log-nav', 'BackButton clicked!');
+  elog('BackButton.onClick fired');
+});
+tg.SettingsButton.onClick(function() {
+  logTo('log-nav', 'SettingsButton clicked!');
+  elog('SettingsButton.onClick fired');
+});
+function backBtn(action) {
+  action === 'show' ? tg.BackButton.show() : tg.BackButton.hide();
+  logTo('log-nav', 'BackButton.' + action);
+}
+function settingsBtn(action) {
+  action === 'show' ? tg.SettingsButton.show() : tg.SettingsButton.hide();
+  logTo('log-nav', 'SettingsButton.' + action);
+}
+
+// ─── Popups ───
+function testAlert() {
+  tg.showAlert('This is a test alert from tgwebview!', function() {
+    logTo('log-popup', 'Alert closed');
+  });
+}
+function testConfirm() {
+  tg.showConfirm('Do you want to proceed?', function(ok) {
+    logTo('log-popup', 'Confirm: ' + (ok ? 'YES' : 'NO'));
+  });
+}
+function testPopup() {
+  tg.showPopup({
+    title: 'Choose Action',
+    message: 'This is a test popup with multiple buttons.',
+    buttons: [
+      {id: 'save', type: 'default', text: 'Save'},
+      {id: 'delete', type: 'destructive', text: 'Delete'},
+      {id: 'cancel', type: 'cancel'},
+    ]
+  }, function(btnId) {
+    logTo('log-popup', 'Popup button: ' + btnId);
+  });
+}
+
+// ─── QR / Clipboard ───
+function testQR() {
+  tg.showScanQrPopup({text: 'Scan a QR code'}, function(data) {
+    logTo('log-qr', 'QR result: ' + data);
+    elog('QR scanned: ' + data);
+    return true; // close scanner
+  });
+}
+function testClipboard() {
+  tg.readTextFromClipboard(function(text) {
+    logTo('log-qr', 'Clipboard: ' + (text || '(empty)'));
+    elog('Clipboard read: ' + (text || '(empty)'));
+  });
+}
+
+// ─── CloudStorage ───
+function csSave() {
+  var k = document.getElementById('cs-key').value;
+  var v = document.getElementById('cs-val').value;
+  tg.CloudStorage.setItem(k, v, function(err, ok) {
+    logTo('log-cloud', err ? 'SAVE ERR: ' + err : 'Saved ' + k + ' = ' + v);
+  });
+}
+function csGet() {
+  var k = document.getElementById('cs-key').value;
+  tg.CloudStorage.getItem(k, function(err, val) {
+    logTo('log-cloud', err ? 'GET ERR: ' + err : 'Got ' + k + ' = ' + JSON.stringify(val));
+  });
+}
+function csKeys() {
+  tg.CloudStorage.getKeys(function(err, keys) {
+    logTo('log-cloud', err ? 'KEYS ERR: ' + err : 'Keys: ' + JSON.stringify(keys));
+  });
+}
+function csDelete() {
+  var k = document.getElementById('cs-key').value;
+  tg.CloudStorage.removeItem(k, function(err, ok) {
+    logTo('log-cloud', err ? 'DEL ERR: ' + err : 'Deleted ' + k);
+  });
+}
+
+// ─── Write Access ───
+function testWriteAccess() {
+  tg.requestWriteAccess(function(ok) {
+    logTo('log-write', 'Write access: ' + (ok ? 'GRANTED' : 'DENIED'));
+    elog('Write access: ' + (ok ? 'granted' : 'denied'));
+  });
+}
+
+// ─── Haptic ───
+function haptic(type, style) {
+  if (type === 'impact') tg.HapticFeedback.impactOccurred(style);
+  else if (type === 'notification') tg.HapticFeedback.notificationOccurred(style);
+  else tg.HapticFeedback.selectionChanged();
+  elog('Haptic: ' + type + (style ? '(' + style + ')' : ''));
+}
+
+// ─── Biometry ───
+function bioInit() {
+  tg.BiometricManager.init(function() {
+    var bm = tg.BiometricManager;
+    logTo('log-bio', 'Init: available=' + bm.isInited +
+      ', type=' + bm.biometricType + ', access=' + bm.isAccessGranted);
+  });
+}
+function bioAuth() {
+  tg.BiometricManager.authenticate({reason: 'Test authentication'}, function(ok, token) {
+    logTo('log-bio', ok ? 'Auth OK, token: ' + token : 'Auth failed');
+  });
+}
+
+// ─── Location ───
+function locInit() {
+  tg.LocationManager.init(function() {
+    logTo('log-loc', 'Init: available=' + tg.LocationManager.isInited +
+      ', access=' + tg.LocationManager.isAccessGranted);
+  });
+}
+function locGet() {
+  tg.LocationManager.getLocation(function(loc) {
+    if (loc) {
+      logTo('log-loc', 'Location: ' + loc.latitude + ', ' + loc.longitude);
+    } else {
+      logTo('log-loc', 'Location: denied or unavailable');
+    }
+  });
+}
+
+// ─── Links / Viewport ───
+function testLink() {
+  tg.openLink('https://github.com/maryny4/tgwebview');
+}
+function testExpand() {
+  tg.expand();
+  elog('Expand requested');
+}
+function testClose() {
+  tg.enableClosingConfirmation();
+  elog('Closing confirmation enabled — try closing the window');
+}
+
+// ─── Invoke Custom Method ───
+function testInvoke() {
+  var method = document.getElementById('invoke-method').value;
+  var paramsStr = document.getElementById('invoke-params').value;
+  var params;
+  try { params = JSON.parse(paramsStr); } catch(e) {
+    logTo('log-invoke', 'Invalid JSON params');
+    return;
+  }
+  tg.invokeCustomMethod(method, params, function(err, result) {
+    if (err) logTo('log-invoke', 'ERROR: ' + err);
+    else logTo('log-invoke', 'Result: ' + JSON.stringify(result));
+  });
+}
+
+// ─── Global event listener ───
+tg.onEvent('viewportChanged', function(e) { elog('viewportChanged: ' + JSON.stringify(e)); });
+tg.onEvent('themeChanged', function() { elog('themeChanged'); });
+tg.onEvent('mainButtonClicked', function() { elog('mainButtonClicked'); });
+tg.onEvent('backButtonClicked', function() { elog('backButtonClicked'); });
+tg.onEvent('settingsButtonClicked', function() { elog('settingsButtonClicked'); });
+
+tg.ready();
+tg.expand();
 </script>
 </body>
 </html>
